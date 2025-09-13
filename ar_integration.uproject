@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "{EAECBCFA-4C1A-09DC-DBE7-F8AA291C9CCA}",
+	"EngineAssociation": "{7D8A949A-4E32-42FE-90F6-F483F3D38C26}",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -34,7 +34,8 @@
 				"Win64",
 				"Linux",
 				"Android",
-				"HoloLens"
+				"HoloLens",
+				"VisionOS"
 			]
 		},
 		{
@@ -54,7 +55,8 @@
 				"Win64",
 				"Linux",
 				"Android",
-				"HoloLens"
+				"HoloLens",
+				"VisionOS"
 			]
 		},
 		{
@@ -79,6 +81,14 @@
 		{
 			"Name": "XRBase",
 			"Enabled": true
+		},
+		{
+			"Name": "VisualStudioTools",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/362651520df94e4fa65492dbcba44ae2",
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"TargetPlatforms": [

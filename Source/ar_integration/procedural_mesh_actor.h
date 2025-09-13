@@ -68,6 +68,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void wireframe(const FLinearColor& color);
 
+	/**
+	 * 
+	 */
+	UFUNCTION(BlueprintCallable)
+	void set_selected(bool mesh_selected);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -77,14 +83,16 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
-	
-private:
+
+public:
 
 	/*
 	 * @var mesh generated mesh
 	 */
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UProceduralMeshComponent* mesh;
+
+private:
 
 	/*
 	 * @var global_opaque global material for meshes with data
