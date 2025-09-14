@@ -3,6 +3,8 @@
 #include "ARPin.h"
 #include "ARBlueprintLibrary.h"
 #include "GameFramework/GameStateBase.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Engine/Blueprint.h"
 
 #include "grpc_channel.h"
 #include "debug_client.h"
@@ -241,6 +243,9 @@ private:
 	 */
 	UPROPERTY()
 	U_grpc_channel* channel = nullptr;
+
+	UPROPERTY()
+	UClass* procedural_mesh_BP_class = nullptr;
 
 	bool starting = UARBlueprintLibrary::IsARPinLocalStoreSupported();
 

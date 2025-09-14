@@ -28,6 +28,19 @@ A_integration_game_state::A_integration_game_state()
 
 	pin_component = CreateDefaultSubobject<USceneComponent>("pin_component");
 	correction_component = CreateDefaultSubobject<USceneComponent>("correction_component");
+
+	static ConstructorHelpers::FObjectFinder<UBlueprint> BP_ProcMeshActor(
+		TEXT("Blueprint'/Game/BP_ProceduralMeshActor.BP_ProceduralMeshActor'")
+	);
+
+	if (BP_ProcMeshActor.Succeeded())
+	{
+		procedural_mesh_BP_class = BP_ProcMeshActor.Object->GeneratedClass;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not load BP_ProceduralMeshActor!"));
+	}
 }
 
 void A_integration_game_state::BeginPlay()
@@ -473,13 +486,20 @@ F_procedural_mesh_data A_integration_game_state::create_proc_mesh_data(
 
 A_procedural_mesh_actor* A_integration_game_state::spawn_mesh_actor(const FString& id)
 {
+	if (!procedural_mesh_BP_class)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ProceduralMeshBPClass is null!"));
+		return nullptr;
+	}
+
 	FActorSpawnParameters spawnParams;
 	spawnParams.bNoFail = true;
 	
 	auto temp = GetWorld()->SpawnActor<A_procedural_mesh_actor>(
-		A_procedural_mesh_actor::StaticClass(), spawnParams);
-	
+		procedural_mesh_BP_class, spawnParams);
+
 	return actors.Emplace(id, temp);
+	
 }
 
 A_procedural_mesh_actor* A_integration_game_state::find_or_spawn(const FString& id)

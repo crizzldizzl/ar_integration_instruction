@@ -31,18 +31,6 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	 */
 	opaque_material = UMaterialInstanceDynamic::Create(global_opaque, mesh);
 	wireframe_material = UMaterialInstanceDynamic::Create(global_wire, mesh);
-
-	/**
-	 * create collision data for mesh --> needed for selection
-	 */
-	mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	mesh->SetCollisionObjectType(ECC_WorldDynamic);
-	mesh->SetCollisionResponseToAllChannels(ECR_Block);
-	mesh->bUseComplexAsSimpleCollision = true;
-	//
-	//
-	//
-
 	
 	RootComponent = mesh;
 	mesh->bUseAsyncCooking = true;
