@@ -16,6 +16,7 @@ A_integration_game_state::A_integration_game_state()
 
 	debug_client = NewObject<U_debug_client>();
 	mesh_client = NewObject<U_mesh_client>();
+	selection_client = NewObject<U_selection_client>();
 
 	franka_client = NewObject<U_franka_client>();
 	franka_tcp_client = NewObject<U_franka_tcp_client>();
@@ -164,6 +165,8 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 	
 	I_Base_Client_Interface::Execute_set_channel(mesh_client, channel);
 
+	I_Base_Client_Interface::Execute_set_channel(selection_client, channel);
+
 	/**
 	 * remove all the actors from the scene
 	 */
@@ -251,6 +254,32 @@ void A_integration_game_state::delete_object(const FString& id)
 {
 	std::unique_lock lock(delete_mutex);
 	delete_list.Add(id);
+}
+
+void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* actor)
+{
+	if (!actor) return;
+
+	// find id by actor
+	FString selectedId;
+	for (const auto& kv : actors)
+	{
+		if (kv.Value == actor)
+		{
+			selectedId = kv.Key;
+			break;
+		}
+	}
+
+	if (selectedId.IsEmpty()) return;
+
+	UE_LOG(LogTemp, Log, TEXT("Selected actor with id: %s"), *selectedId);
+
+	// send id to server
+	if (object_client)
+	{
+		selection_client->send_selection(selectedId);
+	}
 }
 
 void A_integration_game_state::update_anchor_transform(

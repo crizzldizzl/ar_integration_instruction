@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package generated;
+
+option optimize_for = LITE_RUNTIME;
+option cc_enable_arenas = true;
+
+service selection_com {
+  rpc send_selection (SelectionMessage) returns (google.protobuf.Empty);
+}
+
+message SelectionMessage {
+  string object_id = 1;
+}

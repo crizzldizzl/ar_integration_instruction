@@ -126,8 +126,3 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 	
 	mesh->SetMaterial(0, wireframe_material);
 }
-
-void A_procedural_mesh_actor::set_selected(bool mesh_selected)
-{
-	mesh->SetRenderCustomDepth(mesh_selected);
-}

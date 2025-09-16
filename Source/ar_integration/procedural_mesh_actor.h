@@ -68,12 +68,6 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void wireframe(const FLinearColor& color);
 
-	/**
-	 * 
-	 */
-	UFUNCTION(BlueprintCallable)
-	void set_selected(bool mesh_selected);
-
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

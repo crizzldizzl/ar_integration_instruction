@@ -9,6 +9,7 @@
 #include "grpc_channel.h"
 #include "debug_client.h"
 #include "object_client.h"
+#include "selection_client.h"
 #include "mesh_client.h"
 #include "pcl_client.h"
 #include "franka_client.h"
@@ -103,6 +104,12 @@ public:
 	void delete_object(const FString& id);
 
 	/**
+	* selects mesh-object by its id
+	*/
+	UFUNCTION(BlueprintCallable)
+	void select_mesh_by_actor(A_procedural_mesh_actor* actor);
+
+	/**
 	 * Map of all active actors in the scene by id
 	 */
 	UPROPERTY(BlueprintReadOnly)
@@ -116,6 +123,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	U_object_client* object_client;
+
+	UPROPERTY(BlueprintReadOnly)
+	U_selection_client* selection_client;
 
 	UPROPERTY(BlueprintReadOnly)
 	A_hand_tracking_client* hand_tracking_client;
