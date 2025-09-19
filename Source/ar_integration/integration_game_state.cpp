@@ -88,6 +88,23 @@ void A_integration_game_state::BeginPlay()
 	//franka_joint_client->on_joint_data.AddDynamic(this, &A_integration_game_state::handle_joints);
 
 	on_post_actors.Broadcast();
+
+
+	// --- Selection Test ---
+	// for:
+	// --> programmatic generation of selectable meshes
+	// --> dummy for sending mesh id to server
+
+	const FString TestId = TEXT("TestActor_1");
+	A_procedural_mesh_actor* TestActor = spawn_mesh_actor(TestId);
+
+	if (TestActor)
+	{
+		TestActor->SetActorLocation(FVector(200, 0, 50));
+		TestActor->wireframe(FLinearColor::Yellow);
+
+		UE_LOG(LogTemp, Log, TEXT("[IntegrationGameState] Spawned test mesh actor 'TestActor_1'"));
+	}
 }
 
 void A_integration_game_state::Tick(float DeltaSeconds)
@@ -276,7 +293,7 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 	UE_LOG(LogTemp, Log, TEXT("Selected actor with id: %s"), *selectedId);
 
 	// send id to server
-	if (object_client)
+	if (selection_client)
 	{
 		selection_client->send_selection(selectedId);
 	}

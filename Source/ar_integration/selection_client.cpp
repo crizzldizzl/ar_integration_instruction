@@ -4,7 +4,7 @@ bool U_selection_client::send_selection(const FString& object_id)
 {
 	if (!channel || !channel->channel)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SelectionClient] Channel invalid — cannot send selection!"));
+		UE_LOG(LogTemp, Warning, TEXT("[SelectionClient] Channel invalid. cannot send selection!"));
 		return false;
 	}
 
@@ -23,11 +23,11 @@ bool U_selection_client::send_selection(const FString& object_id)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SelectionClient] Failed to send selection for %s — gRPC Error: %d, %s"),
+		UE_LOG(LogTemp, Error, TEXT("[SelectionClient] Failed to send selection for %s. gRPC Error: %d, %s"),
 			*object_id,
 			static_cast<int>(status.error_code()),
 			*FString(status.error_message().c_str()));
-
+	}
 
 	return status.ok();
 }
