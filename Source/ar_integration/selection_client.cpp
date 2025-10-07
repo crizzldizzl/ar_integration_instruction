@@ -23,7 +23,7 @@ bool U_selection_client::send_selection(const FString& mesh_id)
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SelectionClient] Failed. Error code: %d (%s), message: %s"),
+		UE_LOG(LogTemp, Error, TEXT("[SelectionClient] Failed. Error code: %d, message: %s"),
 			static_cast<int>(status.error_code()),
 			*FString(status.error_message().c_str()));
 	}
