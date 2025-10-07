@@ -29,7 +29,7 @@ public:
 	 * @return false if channel not ready or sending failed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Selection")
-	bool send_selection(const FString& object_id);
+	bool send_selection(const FString& mesh_id);
 
 	virtual void stop_Implementation() override {}
 	virtual void state_change_Implementation(connection_state old_state, connection_state new_state) override {}
