@@ -214,11 +214,9 @@ void A_integration_game_state::spawn_obj_proto(const FString& name)
 
 	FActorSpawnParameters spawnParams;
 	spawnParams.bNoFail = true;
-		
-	const auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(
-		A_procedural_mesh_actor::StaticClass(), 
-		FTransform(FQuat::Identity, FVector::ZeroVector, prototype->bounding_box.GetExtent()),
-		spawnParams);
+	
+	auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(
+		procedural_mesh_BP_class, spawnParams);
 	
 	newActor->set_from_data(create_proc_mesh_data(*prototype, *mesh));
 }
@@ -261,24 +259,24 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 	if (!actor) return;
 
 	// find id by actor
-	FString selectedId;
+	FString selected_id;
 	for (const auto& kv : actors)
 	{
 		if (kv.Value == actor)
 		{
-			selectedId = kv.Key;
+			selected_id = kv.Key;
 			break;
 		}
 	}
 
-	if (selectedId.IsEmpty()) return;
+	if (selected_id.IsEmpty()) return;
 
-	UE_LOG(LogTemp, Log, TEXT("Selected actor with id: %s"), *selectedId);
+	UE_LOG(LogTemp, Log, TEXT("Selected actor with id: %s"), *selected_id);
 
 	// send id to server
 	if (selection_client)
 	{
-		selection_client->send_selection(selectedId);
+		selection_client->send_selection(selected_id);
 	}
 }
 
