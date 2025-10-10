@@ -22,6 +22,7 @@ message Object_Data {
 
 message Object_Instance {
 	string id = 1;	
+	int32 pn_id = 4;
 	oneof data {
 		Object_Data obj = 2;
 		Colored_Box box = 3;

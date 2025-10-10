@@ -225,6 +225,8 @@ void A_integration_game_state::set_object_instance_data(
 	const F_object_instance_data& data)
 {
 	std::unique_lock lock(actor_mutex);
+
+	object_instances.Add(data.id, data);
 	
 	F_object_instance temp(
 		TInPlaceType<deduce_type<decltype(data)>::type>{}, data);
@@ -242,7 +244,11 @@ void A_integration_game_state::set_object_instance_data(
 void A_integration_game_state::set_object_instance_colored_box(
 	const F_object_instance_colored_box& data)
 {
+	
 	std::unique_lock lock(actor_mutex);
+
+	box_instances.Add(data.id, data);
+
 	F_object_instance temp(
 		TInPlaceType<deduce_type<decltype(data)>::type>{}, data);
 	set_list.Add(std::move(temp));
@@ -251,6 +257,7 @@ void A_integration_game_state::set_object_instance_colored_box(
 void A_integration_game_state::delete_object(const FString& id)
 {
 	std::unique_lock lock(delete_mutex);
+	object_instances.Remove(id);
 	delete_list.Add(id);
 }
 
@@ -258,7 +265,7 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 {
 	if (!actor) return;
 
-	// find id by actor
+	// Find id by actor
 	FString selected_id;
 	for (const auto& kv : actors)
 	{
@@ -269,14 +276,34 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 		}
 	}
 
-	if (selected_id.IsEmpty()) return;
+	if (selected_id.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameState] No ID found for selected actor!"));
+		return;
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("Selected actor with id: %s"), *selected_id);
+	// Find pn_id by id
+	int32 selected_pn_id = -1;
+	if (object_instances.Contains(selected_id))
+	{
+		selected_pn_id = object_instances[selected_id].pn_id;
+	}
+	else if (box_instances.Contains(selected_id))
+	{
+		selected_pn_id = box_instances[selected_id].pn_id;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameState] No PN-ID found for %s"), *selected_id);
+		return;
+	}
 
-	// send id to server
+	UE_LOG(LogTemp, Log, TEXT("[GameState] Selected actor with ID: %s and PN-ID: %d"), *selected_id, selected_pn_id);
+
+	// Send selection to server
 	if (selection_client)
 	{
-		selection_client->send_selection(selected_id);
+		selection_client->send_selection(selected_id, selected_pn_id);
 	}
 }
 

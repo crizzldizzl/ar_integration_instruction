@@ -13,4 +13,5 @@ service selection_com {
 
 message SelectionMessage {
   string object_id = 1;
+  int32 pn_id = 2;
 }

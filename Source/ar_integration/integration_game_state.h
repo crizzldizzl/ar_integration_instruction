@@ -104,7 +104,7 @@ public:
 	void delete_object(const FString& id);
 
 	/**
-	* selects mesh-object by its id
+	* Selects mesh-object by its id
 	*/
 	UFUNCTION(BlueprintCallable)
 	void select_mesh_by_actor(A_procedural_mesh_actor* actor);
@@ -241,6 +241,20 @@ private:
 	 */
 	UPROPERTY()
 	TMap<FString, F_mesh_data> meshes;
+
+	/**
+	 * Cache of all received object instances (incl. PN-ID)
+	 * -Used to resolve Petri-Net element selection on the HoloLens.
+	 */
+	UPROPERTY()
+	TMap<FString, F_object_instance_data> object_instances;
+
+	/**
+	 * Cache of all received box instances (incl. PN-ID corresponding to a given mesh!)
+	 * -Used to resolve Petri-Net element selection on the HoloLens.
+	 */
+	UPROPERTY()
+	TMap<FString, F_object_instance_colored_box> box_instances;
 
 	/**
 	 * Map of cached object prototypes by their name

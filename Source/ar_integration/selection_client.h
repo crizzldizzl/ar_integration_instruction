@@ -25,11 +25,11 @@ class U_selection_client : public UObject, public I_Base_Client_Interface
 public:
 
 	/**
-	 * sends the id of a selected mesh-object to the server
+	 * sends the ids of a selected mesh-object to the server
 	 * @return false if channel not ready or sending failed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Selection")
-	bool send_selection(const FString& mesh_id);
+	bool send_selection(const FString& mesh_id, int32 pn_id);
 
 	virtual void stop_Implementation() override {}
 	virtual void state_change_Implementation(connection_state old_state, connection_state new_state) override {}

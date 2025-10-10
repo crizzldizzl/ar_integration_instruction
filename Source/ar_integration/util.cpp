@@ -290,6 +290,7 @@ F_object_instance_data convert_meta(const generated::Object_Instance& in, const 
 	F_object_instance_data out;
 
 	out.id = convert<FString>(in.id());
+	out.pn_id = in.pn_id();
 	out.data = convert_meta<F_object_data>(in.obj(), cv);
 
 	return out;
@@ -311,6 +312,7 @@ F_object_instance_colored_box convert_meta(const generated::Object_Instance& in,
 	F_object_instance_colored_box out;
 
 	out.id = convert<FString>(in.id());
+	out.pn_id = in.pn_id();
 	out.data = convert_meta<F_colored_box>(in.box(), cv);
 
 	return out;

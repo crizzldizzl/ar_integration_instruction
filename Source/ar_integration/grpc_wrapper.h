@@ -124,6 +124,9 @@ struct AR_INTEGRATION_API F_object_instance_data
 	FString id;
 
 	UPROPERTY(VisibleAnywhere)
+	int32 pn_id;
+
+	UPROPERTY(VisibleAnywhere)
 	F_object_data data;
 };
 
@@ -134,6 +137,9 @@ struct AR_INTEGRATION_API F_object_instance_colored_box
 
 	UPROPERTY(VisibleAnywhere)
 	FString id;
+
+	UPROPERTY(VisibleAnywhere)
+	int32 pn_id;
 
 	UPROPERTY(VisibleAnywhere)
 	F_colored_box data;
