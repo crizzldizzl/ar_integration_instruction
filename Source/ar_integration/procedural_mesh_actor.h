@@ -7,7 +7,13 @@
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 
+#include "Interactions/UxtGrabTargetComponent.h"
+#include "HandTracking/IUxtHandTracker.h"
+#include "Input/UxtNearPointerComponent.h"
+#include "Input/UxtFarPointerComponent.h"
+
 #include "grpc_wrapper.h"
+#include "assignment_menu_actor.h"
 
 #include "procedural_mesh_actor.generated.h"
 
@@ -53,7 +59,9 @@ class AR_INTEGRATION_API A_procedural_mesh_actor : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
+	/*
+	 * Sets default values for this actor's properties
+	 */
 	A_procedural_mesh_actor();
 
 	/**
@@ -68,17 +76,19 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void wireframe(const FLinearColor& color);
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	/**
+	 * called when assignment menu is closed to null active menu
+	 */
+	UFUNCTION(BlueprintCallable)
+	void on_assignment_menu_closed();
 
-public:	
-	// Called every frame
+	// --- Functions called by the engine every frame ---
+
 	virtual void Tick(float DeltaTime) override;
-	virtual void PostLoad() override;
-	virtual void PostActorCreated() override;
 
-public:
+	virtual void PostLoad() override;
+
+	virtual void PostActorCreated() override;
 
 	/*
 	 * @var mesh generated mesh
@@ -86,29 +96,54 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	UProceduralMeshComponent* mesh;
 
+protected:
+
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
 private:
+
+	/*
+	 * grab event handlers for spawning assignment menu
+	 */
+	UFUNCTION()
+	void handle_begin_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data);
+	UFUNCTION()
+	void handle_end_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data);
 
 	/*
 	 * @var global_opaque global material for meshes with data
 	 */
 	UPROPERTY()
-	UMaterial* global_opaque;
+	UMaterial* global_opaque_;
 
 	/*
 	 * @var global_wire global wireframe material for cube mesh
 	 */
 	UPROPERTY()
-	UMaterial* global_wire;
+	UMaterial* global_wire_;
 
 	/*
 	 * @var opaque_material instanced global_opaque material
 	 */
 	UPROPERTY()
-	UMaterialInstanceDynamic* opaque_material;
+	UMaterialInstanceDynamic* opaque_material_;
 
 	/*
 	 * @var wireframe_material instanced global_wire material
 	 */
 	UPROPERTY()
-	UMaterialInstanceDynamic* wireframe_material;
+	UMaterialInstanceDynamic* wireframe_material_;
+
+	/*
+	 * @var assignment_menu_class class of the assignment menu actor to spawn
+	 */
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<A_assignment_menu_actor> assignment_menu_class_;
+
+	/*
+	 * @var active_menu currently active assignment menu
+	 */
+	UPROPERTY()
+	A_assignment_menu_actor* active_menu_;
 };
