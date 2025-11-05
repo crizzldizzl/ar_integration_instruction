@@ -1,6 +1,5 @@
 #include "assignment_menu_actor.h"
 
-#include "assignment_menu_actor.h"
 #include "integration_game_state.h"
 #include "procedural_mesh_actor.h"
 #include "Input/UxtPointerComponent.h"

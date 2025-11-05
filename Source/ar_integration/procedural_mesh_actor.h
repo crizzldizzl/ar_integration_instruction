@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 
+#include "Components/TextRenderComponent.h"
 #include "Interactions/UxtGrabTargetComponent.h"
 #include "HandTracking/IUxtHandTracker.h"
 #include "Input/UxtNearPointerComponent.h"
@@ -68,6 +69,11 @@ public:
 	 * sets the assignment state and updates material stencil value
 	 */
 	void set_assignment_state(assignment_type assignment);
+
+	/*
+	 * updates the assignment labels based on current assignment state
+	 */
+	void update_assignment_labels();
 
 	/**
 	 * generates the mesh from data and sets the procedural mesh 
@@ -171,6 +177,12 @@ private:
 	A_assignment_menu_actor* active_menu_;
 
 	/*
+	 * @var assignment_labels_ text render components for assignment labels
+	 */
+	UPROPERTY()
+	TArray<UTextRenderComponent*> assignment_labels_;
+
+	/*
 	 * @var current_assignment_ current assignment state of the mesh
 	 */
 	UPROPERTY()
@@ -182,9 +194,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Editor Test")
 	bool b_register_in_editor_ = true;
 
-	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "bRegisterInEditor"))
+	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "b_register_in_editor"))
 	FString editor_mesh_id_;
 
-	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "bRegisterInEditor"))
+	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "b_register_in_editor"))
 	int32 editor_pn_id_ = -1;
 };

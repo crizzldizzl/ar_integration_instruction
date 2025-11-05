@@ -376,12 +376,6 @@ private:
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
 
 	/**
-	 * outline post process material for assignment visualization
-	 */
-	UPROPERTY()
-	UMaterialInterface* assignment_outline_material_ = nullptr;
-
-	/**
 	 * text actor for debug information
 	 */
 	UPROPERTY()

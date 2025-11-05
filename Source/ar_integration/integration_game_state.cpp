@@ -30,47 +30,11 @@ A_integration_game_state::A_integration_game_state()
 	pin_component_ = CreateDefaultSubobject<USceneComponent>("pin_component");
 	correction_component_ = CreateDefaultSubobject<USceneComponent>("correction_component");
 
-	// set up outline post process material
-	static ConstructorHelpers::FObjectFinder<UMaterialInterface> assignment_outline_material
-	(
-		TEXT("Material'/Game/assignment_outline.assignment_outline'")
-	);
-
-	if (assignment_outline_material.Succeeded())
-	{
-		assignment_outline_material_ = assignment_outline_material.Object;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Could not load the assignment outline material."));
-	}
-
 }
 
 void A_integration_game_state::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// enable custom-depth and stencil for assignment visualization
-	if (auto* cvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth")))
-	{
-		cvar->Set(3);
-	}
-
-	if (assignment_outline_material_)
-	{
-		FActorSpawnParameters spawn;
-		spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		if (APostProcessVolume* volume = GetWorld()->SpawnActor<APostProcessVolume>(spawn))
-		{
-			volume->bUnbound = true;
-
-			auto& blendable = volume->Settings.WeightedBlendables.Array.AddDefaulted_GetRef();
-			blendable.Weight = 1.0f;
-			blendable.Object = assignment_outline_material_;
-		}
-	}
 
 	text_actor_ = GetWorld()->SpawnActor<ATextRenderActor>(ATextRenderActor::StaticClass(), FVector(0, 0, 100), FRotator::ZeroRotator);
 	text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("BeginPlay reached!")));
@@ -248,9 +212,9 @@ void A_integration_game_state::spawn_obj_proto(const FString& name)
 	FActorSpawnParameters spawn_params;
 	spawn_params.bNoFail = true;
 	
-	const FTransform spawnTransform( FQuat::Identity, FVector::ZeroVector, prototype->bounding_box.GetExtent());
+	const FTransform spawn_transform( FQuat::Identity, FVector::ZeroVector, prototype->bounding_box.GetExtent());
 
-	auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(A_procedural_mesh_actor::StaticClass(), spawnTransform, spawn_params);
+	auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(A_procedural_mesh_actor::StaticClass(), spawn_transform, spawn_params);
 	
 	newActor->set_from_data(create_proc_mesh_data(*prototype, *mesh));
 }

@@ -44,7 +44,6 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	opaque_material_ = UMaterialInstanceDynamic::Create(global_opaque_, mesh);
 	wireframe_material_ = UMaterialInstanceDynamic::Create(global_wire_, mesh);
 	
-	RootComponent = mesh;
 	mesh->bUseAsyncCooking = true;
 
 	static ConstructorHelpers::FClassFinder<A_assignment_menu_actor> assignment_menu_bp
@@ -62,6 +61,21 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	}
 
 	active_menu_ = nullptr;
+
+	// create text render components for assignment labels
+	for (int32 i = 0; i < 4; ++i)
+	{
+		UTextRenderComponent* label = CreateDefaultSubobject<UTextRenderComponent>(*FString::Printf(TEXT("assignment_label_%d"), i));
+
+		label->SetupAttachment(mesh);
+		label->SetHorizontalAlignment(EHTA_Center);
+		label->SetVerticalAlignment(EVRTA_TextCenter);
+		label->SetText(FText::GetEmpty());
+		label->SetTextRenderColor(FColor::Transparent);
+		label->SetHiddenInGame(true);
+
+		assignment_labels_.Add(label);
+	}
 }
 
 // Called when the game starts or when spawned
@@ -98,10 +112,12 @@ void A_procedural_mesh_actor::OnConstruction(const FTransform& Transform)
 	// only build the placeholder if there isnt already a mesh section
 	if (!mesh->GetNumSections())
 	{
-		wireframe(FLinearColor::Gray);
+		wireframe(FLinearColor::Red);
 		mesh->SetHiddenInGame(false);
 		mesh->SetVisibility(true);
 	}
+
+	update_assignment_labels();
 
 }
 
@@ -130,6 +146,8 @@ void A_procedural_mesh_actor::set_from_data(const F_procedural_mesh_data& data)
 	);
 	
 	mesh->SetMaterial(0, opaque_material_);
+
+	update_assignment_labels();
 }
 
 void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
@@ -184,6 +202,8 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 	);
 	
 	mesh->SetMaterial(0, wireframe_material_);
+
+	update_assignment_labels();
 }
 
 void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data)
@@ -265,8 +285,48 @@ void A_procedural_mesh_actor::set_assignment_state(assignment_type assignment)
 	if (current_assignment_ == assignment) return;
 
 	current_assignment_ = assignment;
-	mesh->SetCustomDepthStencilValue(assignment_to_stencil(assignment));
+
+	const bool show_label = (assignment == assignment_type::HUMAN || assignment == assignment_type::ROBOT);
+
+	FText label_text;
+	if (assignment == assignment_type::ROBOT)
+	{
+		label_text = FText::FromString(TEXT("R"));
+	}
+	else if (assignment == assignment_type::HUMAN)
+	{
+		label_text = FText::FromString(TEXT("H"));
+	}
+	else
+	{
+		label_text = FText::GetEmpty();
+	}
+		
+
+	FColor label_color;
+	if (assignment == assignment_type::ROBOT)
+	{
+		label_color = FColor(255, 140, 0);
+	}
+	else if (assignment == assignment_type::HUMAN)
+	{
+		label_color = FColor(0, 128, 255);
+	}
+	else
+	{
+		label_color = FColor::Transparent;
+	}
+
+	for (UTextRenderComponent* text : assignment_labels_)
+	{
+		if (!text) continue;
+		text->SetText(label_text);
+		text->SetTextRenderColor(label_color);
+		text->SetHiddenInGame(!show_label);
+	}
+
 	mesh->MarkRenderStateDirty();
+
 }
 
 uint8 A_procedural_mesh_actor::assignment_to_stencil(assignment_type assignment) const
@@ -281,5 +341,47 @@ uint8 A_procedural_mesh_actor::assignment_to_stencil(assignment_type assignment)
 
 	default:
 		return 0;
+	}
+}
+
+void A_procedural_mesh_actor::update_assignment_labels()
+{
+	if (!mesh || assignment_labels_.Num() == 0) return;
+
+	const FBoxSphereBounds bounds = mesh->Bounds;
+	const FVector extent = bounds.BoxExtent;
+
+	// letters slightly off the surface
+	const float offset = 0.5f;     
+
+	// scale to the block size
+	const float labelSize = FMath::Max(extent.X, extent.Y) * 1.4f;
+
+	struct loc_rot
+	{
+		FVector  location;
+		FRotator rotation;
+	};
+
+	loc_rot poses[4] = 
+	{
+		// +X
+		{ FVector(extent.X + offset, 0.f, 0.f), FRotator(0.f,   0.f, 0.f) },
+		// -X
+		{ FVector(-extent.X - offset, 0.f, 0.f), FRotator(0.f, 180.f, 0.f) },
+		// +Y
+		{ FVector(0.f,  extent.Y + offset, 0.f), FRotator(0.f,  90.f, 0.f) },
+		// -Y
+		{ FVector(0.f, -extent.Y - offset, 0.f), FRotator(0.f, -90.f, 0.f) }   
+	};
+
+	for (int32 i = 0; i < assignment_labels_.Num() && i < UE_ARRAY_COUNT(poses); ++i)
+	{
+		UTextRenderComponent* label = assignment_labels_[i];
+		label->SetRelativeLocation(poses[i].location);
+		label->SetRelativeRotation(poses[i].rotation);
+		label->SetHorizontalAlignment(EHTA_Center);
+		label->SetVerticalAlignment(EVRTA_TextCenter);
+		label->SetWorldSize(labelSize);
 	}
 }
