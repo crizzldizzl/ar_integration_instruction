@@ -27,6 +27,7 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 
 	// add grab target component for interaction
 	grab_target_ = CreateDefaultSubobject<UUxtGrabTargetComponent>(TEXT("grab_target"));
+	grab_target_->Deactivate();
 
 	/**
 	 * Load global materials with engine reference
@@ -108,6 +109,8 @@ void A_procedural_mesh_actor::OnConstruction(const FTransform& Transform)
 		mesh->SetHiddenInGame(false);
 		mesh->SetVisibility(true);
 	}
+
+	apply_test_pn_id();
 
 	update_assignment_labels();
 
@@ -200,6 +203,11 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 
 void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data)
 {
+	if (!selectable_)
+	{
+		return;
+	}
+
 	if (active_menu_ || !assignment_menu_class_) return;
 
 	// determine which hand is grabbing
@@ -376,4 +384,51 @@ void A_procedural_mesh_actor::update_assignment_labels()
 		label->SetVerticalAlignment(EVRTA_TextCenter);
 		label->SetWorldSize(labelSize);
 	}
+}
+
+void A_procedural_mesh_actor::set_selectable(bool enable)
+{
+	selectable_ = enable;
+
+	if (!grab_target_)
+	{
+		return;
+	}
+
+	// mesh is selectable
+	if (enable)
+	{
+		// enable collision for mesh
+		if (mesh)
+		{
+			mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			mesh->SetCollisionResponseToAllChannels(ECR_Block);
+		}
+
+		// enable grab target for near and far interaction with one hand
+		grab_target_->InteractionMode = static_cast<int32>(EUxtInteractionMode::Near | EUxtInteractionMode::Far);
+		grab_target_->GrabModes = static_cast<int32>(EUxtGrabMode::OneHanded);
+		grab_target_->Activate();
+	}
+
+	// mesh is not selectable
+	else
+	{
+		// disable collision for mesh
+		if (mesh)
+		{
+			mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// disable grab target
+		grab_target_->ForceEndGrab();
+		grab_target_->InteractionMode = 0;
+		grab_target_->GrabModes = 0;
+		grab_target_->Deactivate();
+	}
+}
+
+bool A_procedural_mesh_actor::is_selectable() const
+{
+	return selectable_;
 }

@@ -12,6 +12,7 @@
 #include "HandTracking/IUxtHandTracker.h"
 #include "Input/UxtNearPointerComponent.h"
 #include "Input/UxtFarPointerComponent.h"
+#include "Interactions/UxtInteractionMode.h"
 
 #include "grpc_wrapper.h"
 #include "assignment_menu_actor.h"
@@ -74,6 +75,16 @@ public:
 	 * updates the assignment labels based on current assignment state
 	 */
 	void update_assignment_labels();
+
+	/*
+	 * enables or disables the mesh as selectable by the assignment system
+	 */
+	void set_selectable(bool enable);
+
+	/*
+	 * returns whether the mesh is selectable by the assignment system
+	 */
+	bool is_selectable() const;
 
 	/**
 	 * generates the mesh from data and sets the procedural mesh 
@@ -187,5 +198,22 @@ private:
 	 */
 	UPROPERTY()
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
+
+	/*
+	 * @var selectable_ whether the mesh is selectable by the assignment system
+	 */
+	UPROPERTY()
+	bool selectable_ = false;
+
+	// ------------------------------ testing members ------------------------------
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Testing", meta = (AllowPrivateAccess = "true"))
+	int32 test_pn_id_ = -1;
+
+	UFUNCTION(BlueprintCallable, Category = "Testing", meta = (AllowPrivateAccess = "true"))
+	void apply_test_pn_id()
+	{
+		set_selectable(test_pn_id_ >= 0);
+	}
 
 };

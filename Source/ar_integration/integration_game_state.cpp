@@ -418,6 +418,22 @@ void A_integration_game_state::handle_object_instance(const F_object_instance& i
 	FTransform trafo;
 	std::function<void(A_procedural_mesh_actor* actor)> f;
 
+	const int32 pn_id = Visit
+	(
+		Overload
+		{
+			[](const F_object_instance_data& instance_data)
+			{
+				return instance_data.pn_id;
+			},
+			[](const F_object_instance_colored_box& instance_cb)
+			{
+				return instance_cb.pn_id;
+			}
+		},
+		instance
+	);
+
 	/**
 	 * Spawn and/or change
 	 */
@@ -490,6 +506,7 @@ void A_integration_game_state::handle_object_instance(const F_object_instance& i
 	 */
 	const FString id = get_object_instance_id(instance);
 	A_procedural_mesh_actor* actor = find_or_spawn(id);
+	actor->set_selectable(pn_id > 0);
 	f(actor);
 	actor->AttachToComponent(correction_component_, FAttachmentTransformRules::KeepRelativeTransform);
 
