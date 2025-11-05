@@ -4,12 +4,12 @@ bool U_selection_client::send_selection(const FString& mesh_id, int32 pn_id, ass
 {
 	if (!channel || !channel->channel)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SelectionClient] Channel invalid. Cannot send selection!"));
+		UE_LOG(LogTemp, Warning, TEXT("[selection_client] Channel invalid. Cannot send selection!"));
 		return false;
 	}
 
 	const int32 assignment_raw = static_cast<int32>(assignment);
-	UE_LOG(LogTemp, Log, TEXT("[SelectionClient] Sending selection %s (PN-ID: %d, Assignment: %d)"), *mesh_id, pn_id, assignment_raw);
+	UE_LOG(LogTemp, Log, TEXT("[selection_client] Sending selection %s (PN-ID: %d, Assignment: %d)"), *mesh_id, pn_id, assignment_raw);
 
 	grpc::ClientContext ctx;
 	generated::selection_message msg;
@@ -23,11 +23,11 @@ bool U_selection_client::send_selection(const FString& mesh_id, int32 pn_id, ass
 
 	if (status.ok())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[SelectionClient] Successfully sent selection: %s (PN-ID: %d)"), *mesh_id, pn_id);
+		UE_LOG(LogTemp, Log, TEXT("[selection_client] Successfully sent selection: %s (PN-ID: %d)"), *mesh_id, pn_id);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SelectionClient] Failed to send selection. Error code: %d, message: %s"), static_cast<int>(status.error_code()), *FString(status.error_message().c_str()));
+		UE_LOG(LogTemp, Error, TEXT("[selection_client] Failed to send selection. Error code: %d, message: %s"), static_cast<int>(status.error_code()), *FString(status.error_message().c_str()));
 	}
 
 	return status.ok();

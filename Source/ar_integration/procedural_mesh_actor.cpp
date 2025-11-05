@@ -57,7 +57,7 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not load the assignment menu blueprint!"));
+		UE_LOG(LogTemp, Error, TEXT("[A_procedural_mesh_actor] Could not load the assignment menu blueprint!"));
 	}
 
 	active_menu_ = nullptr;
@@ -87,14 +87,6 @@ void A_procedural_mesh_actor::BeginPlay()
 	grab_target_->OnBeginGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_begin_grab);
 	grab_target_->OnEndGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_end_grab);
 
-	// only for debug/testing
-	if (b_register_in_editor_ && GIsEditor && GetWorld() && GetWorld()->WorldType == EWorldType::PIE && !editor_mesh_id_.IsEmpty())
-	{
-		if (auto* gs = GetWorld()->GetGameState<A_integration_game_state>())
-		{
-			gs->register_editor_placeholder(editor_mesh_id_, this, editor_pn_id_);
-		}
-	}
 }
 
 // Called every frame

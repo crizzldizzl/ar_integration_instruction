@@ -376,12 +376,6 @@ private:
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
 
 	/**
-	 * text actor for debug information
-	 */
-	UPROPERTY()
-	ATextRenderActor* text_actor_;
-
-	/**
 	 * removes const ref from type signature
 	 *
 	 * provides easier way to set value of TVariant
@@ -392,10 +386,5 @@ private:
 	{
 		using type = std::remove_const_t<std::remove_reference_t<T>>;
 	};
-
-	// editor-only functions for testing and debug
-public:
-
-	void register_editor_placeholder(const FString& id, A_procedural_mesh_actor* actor, int32 pn_id);
 
 };

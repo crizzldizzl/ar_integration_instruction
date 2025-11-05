@@ -188,15 +188,4 @@ private:
 	UPROPERTY()
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
 
-public:
-	// --- editor-only properties for debug and test --- 
-
-	UPROPERTY(EditAnywhere, Category = "Editor Test")
-	bool b_register_in_editor_ = true;
-
-	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "b_register_in_editor"))
-	FString editor_mesh_id_;
-
-	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "b_register_in_editor"))
-	int32 editor_pn_id_ = -1;
 };

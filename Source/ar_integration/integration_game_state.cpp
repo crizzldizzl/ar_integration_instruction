@@ -36,11 +36,6 @@ void A_integration_game_state::BeginPlay()
 {
 	Super::BeginPlay();
 
-	text_actor_ = GetWorld()->SpawnActor<ATextRenderActor>(ATextRenderActor::StaticClass(), FVector(0, 0, 100), FRotator::ZeroRotator);
-	text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("BeginPlay reached!")));
-	text_actor_->GetTextRender()->SetTextRenderColor(FColor::Yellow);
-	text_actor_->GetTextRender()->SetWorldSize(30.f);
-
 	pin_component_->RegisterComponent();
 
 	//correction_component->RegisterComponent();
@@ -124,15 +119,6 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 {
 	if (target == old_target_) return;
 
-	text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("Trying to change channel")));
-
-	if (!channel_->construct(target, 400, retries))
-	{
-		text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("Changing Channel failed")));
-		return;
-	}
-	text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("Changing channel Succeeded")));
-
 	old_target_ = target;
 	synced_ = false;
 
@@ -194,7 +180,6 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 	if (anchor_pin)
 #endif
 	{
-		text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("Anchor Pin is fine.")));
 		sync_and_subscribe();
 	}
 	
@@ -264,7 +249,7 @@ void A_integration_game_state::set_assignment_mode(assignment_type assignment)
 	}
 
 	current_assignment_ = assignment;
-	UE_LOG(LogTemp, Log, TEXT("[GameState] Assignment mode switched to %d"), static_cast<int32>(assignment));
+	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Assignment mode switched to %d"), static_cast<int32>(assignment));
 }
 
 assignment_type A_integration_game_state::get_assignment_mode() const
@@ -291,7 +276,7 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 
 	if (selected_id.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GameState] No ID found for selected actor!"));
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No ID found for selected actor!"));
 		return;
 	}
 
@@ -307,12 +292,12 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GameState] No PN-ID found for %s"), *selected_id);
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No PN-ID found for %s"), *selected_id);
 		return;
 	}
 
 	const int32 assignment_raw = static_cast<int32>(current_assignment_);
-	UE_LOG(LogTemp, Log, TEXT("[GameState] Selected actor %s (PN-ID: %d, Assignment: %d)"), *selected_id, selected_pn_id, assignment_raw);
+	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Selected actor %s (PN-ID: %d, Assignment: %d)"), *selected_id, selected_pn_id, assignment_raw);
 
 	// Send selection to server
 	if (selection_client)
@@ -320,12 +305,12 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 		bool success = selection_client->send_selection(selected_id, selected_pn_id, current_assignment_);
 		if (!success)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[GameState] Failed to send selection to server!"));
+			UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Failed to send selection to server!"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GameState] Selection client is null!"));
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client is null!"));
 	}
 }
 
@@ -537,7 +522,8 @@ FString A_integration_game_state::get_object_instance_id(const F_object_instance
 		}, data);
 }
 
-bool A_integration_game_state::get_prototype_and_mesh(
+bool A_integration_game_state::get_prototype_and_mesh
+(
 	const FString& proto_id,
 	const F_object_prototype*& proto, 
 	const F_mesh_data*& mesh)
@@ -551,7 +537,8 @@ bool A_integration_game_state::get_prototype_and_mesh(
 	return true;
 }
 
-F_procedural_mesh_data A_integration_game_state::create_proc_mesh_data(
+F_procedural_mesh_data A_integration_game_state::create_proc_mesh_data
+(
 	const F_object_prototype& proto,
 	const F_mesh_data& mesh)
 {
@@ -608,25 +595,4 @@ void A_integration_game_state::handle_sync_joints(const TArray<F_joints_synced>&
 {
 	//if (!franka->IsHidden())
 		franka_controller_->set_visual_plan(data);
-}
-
-void A_integration_game_state::register_editor_placeholder
-(
-	const FString& id,
-	A_procedural_mesh_actor* actor,
-	int32 pn_id
-)
-{
-	if (!actor || id.IsEmpty()) return;
-
-	actors.Add(id, actor);
-
-	if (pn_id >= 0)
-	{
-		F_object_instance_data dummy;
-		dummy.id = id;
-		dummy.pn_id = pn_id;
-		dummy.data.prototype_name = TEXT("editor_placeholder");
-		object_instances_.Add(id, dummy);
-	}
 }
