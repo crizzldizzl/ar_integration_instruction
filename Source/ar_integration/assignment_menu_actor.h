@@ -75,7 +75,7 @@ protected:
 	void on_unassign_pressed(UUxtPressableButtonComponent* button, UUxtPointerComponent* pointer);
 
 	/**
-	 * Helper shared by every button
+	 * Handles assignment logic
 	 */
 	void handle_assignment(assignment_type assignment);
 

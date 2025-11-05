@@ -30,24 +30,47 @@ A_integration_game_state::A_integration_game_state()
 	pin_component_ = CreateDefaultSubobject<USceneComponent>("pin_component");
 	correction_component_ = CreateDefaultSubobject<USceneComponent>("correction_component");
 
-	static ConstructorHelpers::FClassFinder<A_procedural_mesh_actor> proc_mesh_actor_bp
+	// set up outline post process material
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> assignment_outline_material
 	(
-		TEXT("Blueprint'/Game/procedural_mesh_actor.procedural_mesh_actor_C'")
+		TEXT("Material'/Game/assignment_outline.assignment_outline'")
 	);
 
-	if (proc_mesh_actor_bp.Succeeded())
+	if (assignment_outline_material.Succeeded())
 	{
-		procedural_mesh_bp_class_ = proc_mesh_actor_bp.Class;
+		assignment_outline_material_ = assignment_outline_material.Object;
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Could not load the procedural mesh actor blueprint!"));
+		UE_LOG(LogTemp, Warning, TEXT("Could not load the assignment outline material."));
 	}
+
 }
 
 void A_integration_game_state::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// enable custom-depth and stencil for assignment visualization
+	if (auto* cvar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth")))
+	{
+		cvar->Set(3);
+	}
+
+	if (assignment_outline_material_)
+	{
+		FActorSpawnParameters spawn;
+		spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		if (APostProcessVolume* volume = GetWorld()->SpawnActor<APostProcessVolume>(spawn))
+		{
+			volume->bUnbound = true;
+
+			auto& blendable = volume->Settings.WeightedBlendables.Array.AddDefaulted_GetRef();
+			blendable.Weight = 1.0f;
+			blendable.Object = assignment_outline_material_;
+		}
+	}
 
 	text_actor_ = GetWorld()->SpawnActor<ATextRenderActor>(ATextRenderActor::StaticClass(), FVector(0, 0, 100), FRotator::ZeroRotator);
 	text_actor_->GetTextRender()->SetText(FText::FromString(TEXT("BeginPlay reached!")));
@@ -227,7 +250,7 @@ void A_integration_game_state::spawn_obj_proto(const FString& name)
 	
 	const FTransform spawnTransform( FQuat::Identity, FVector::ZeroVector, prototype->bounding_box.GetExtent());
 
-	auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(procedural_mesh_bp_class_, spawnTransform, spawn_params);
+	auto newActor = GetWorld()->SpawnActor<A_procedural_mesh_actor>(A_procedural_mesh_actor::StaticClass(), spawnTransform, spawn_params);
 	
 	newActor->set_from_data(create_proc_mesh_data(*prototype, *mesh));
 }
@@ -579,16 +602,11 @@ F_procedural_mesh_data A_integration_game_state::create_proc_mesh_data(
 
 A_procedural_mesh_actor* A_integration_game_state::spawn_mesh_actor(const FString& id)
 {
-	if (!procedural_mesh_bp_class_)
-	{
-		UE_LOG(LogTemp, Error, TEXT("procedural mesh actur blueprint is null!"));
-		return nullptr;
-	}
 
 	FActorSpawnParameters spawn_params;
 	spawn_params.bNoFail = true;
 	
-	auto temp = GetWorld()->SpawnActor<A_procedural_mesh_actor>(procedural_mesh_bp_class_, spawn_params);
+	auto temp = GetWorld()->SpawnActor<A_procedural_mesh_actor>(A_procedural_mesh_actor::StaticClass(), spawn_params);
 
 	return actors.Emplace(id, temp);
 	
@@ -626,4 +644,25 @@ void A_integration_game_state::handle_sync_joints(const TArray<F_joints_synced>&
 {
 	//if (!franka->IsHidden())
 		franka_controller_->set_visual_plan(data);
+}
+
+void A_integration_game_state::register_editor_placeholder
+(
+	const FString& id,
+	A_procedural_mesh_actor* actor,
+	int32 pn_id
+)
+{
+	if (!actor || id.IsEmpty()) return;
+
+	actors.Add(id, actor);
+
+	if (pn_id >= 0)
+	{
+		F_object_instance_data dummy;
+		dummy.id = id;
+		dummy.pn_id = pn_id;
+		dummy.data.prototype_name = TEXT("editor_placeholder");
+		object_instances_.Add(id, dummy);
+	}
 }

@@ -3,6 +3,9 @@
 
 #include "procedural_mesh_actor.h"
 
+// only for debug/testing
+#include "integration_game_state.h"
+
 // Sets default values
 A_procedural_mesh_actor::A_procedural_mesh_actor()
 {
@@ -13,15 +16,24 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	 * Generate mesh member and add to actor
 	 */
 	mesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
+	RootComponent = mesh;
+
+	// enable custom depth for assignment visualization and set up collision
+	mesh->SetRenderCustomDepth(true);
+	mesh->SetCustomDepthStencilValue(0);
+	mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	mesh->SetCollisionResponseToAllChannels(ECR_Block);
+	mesh->bUseComplexAsSimpleCollision = true;
+
+	// add grab target component for interaction
+	grab_target_ = CreateDefaultSubobject<UUxtGrabTargetComponent>(TEXT("grab_target"));
 
 	/**
 	 * Load global materials with engine reference
 	 */
-	static ConstructorHelpers::FObjectFinder<UMaterial> material_opaque(
-		TEXT("Material'/Game/proced_mat.proced_mat'"));
+	static ConstructorHelpers::FObjectFinder<UMaterial> material_opaque(TEXT("Material'/Game/proced_mat.proced_mat'"));
 
-	static ConstructorHelpers::FObjectFinder<UMaterial> material_wire(
-		TEXT("Material'/Game/wireframe.wireframe'"));
+	static ConstructorHelpers::FObjectFinder<UMaterial> material_wire(TEXT("Material'/Game/wireframe.wireframe'"));
 	
 	global_opaque_ = material_opaque.Object;
 	global_wire_ = material_wire.Object;
@@ -57,10 +69,17 @@ void A_procedural_mesh_actor::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	if (auto* grab_target = FindComponentByClass<UUxtGrabTargetComponent>())
+	// bind grab events
+	grab_target_->OnBeginGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_begin_grab);
+	grab_target_->OnEndGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_end_grab);
+
+	// only for debug/testing
+	if (b_register_in_editor_ && GIsEditor && GetWorld() && GetWorld()->WorldType == EWorldType::PIE && !editor_mesh_id_.IsEmpty())
 	{
-		grab_target->OnBeginGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_begin_grab);
-		grab_target->OnEndGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_end_grab);
+		if (auto* gs = GetWorld()->GetGameState<A_integration_game_state>())
+		{
+			gs->register_editor_placeholder(editor_mesh_id_, this, editor_pn_id_);
+		}
 	}
 }
 
@@ -68,6 +87,21 @@ void A_procedural_mesh_actor::BeginPlay()
 void A_procedural_mesh_actor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+}
+
+// Called when properties are changed in editor or actor is spawned 
+void A_procedural_mesh_actor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	// only build the placeholder if there isnt already a mesh section
+	if (!mesh->GetNumSections())
+	{
+		wireframe(FLinearColor::Gray);
+		mesh->SetHiddenInGame(false);
+		mesh->SetVisibility(true);
+	}
 
 }
 
@@ -89,9 +123,11 @@ void A_procedural_mesh_actor::set_from_data(const F_procedural_mesh_data& data)
 	vertex_colors.Init(data.mean_color, data.vertices.Num());
 
 	mesh->ClearAllMeshSections();
-	mesh->CreateMeshSection_LinearColor(
+	mesh->CreateMeshSection_LinearColor
+	(
 		0, data.vertices, data.triangles, data.normals, 
-		{}, vertex_colors, {}, false);
+		{}, vertex_colors, {}, true
+	);
 	
 	mesh->SetMaterial(0, opaque_material_);
 }
@@ -141,9 +177,11 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 	vertex_colors.Init(color, vertices.Num());
 
 	mesh->ClearAllMeshSections();
-	mesh->CreateMeshSection_LinearColor(
+	mesh->CreateMeshSection_LinearColor
+	(
 		0, vertices, triangles, normals,
-		{}, vertex_colors, {}, false);
+		{}, vertex_colors, {}, true
+	);
 	
 	mesh->SetMaterial(0, wireframe_material_);
 }
@@ -217,10 +255,31 @@ void A_procedural_mesh_actor::handle_end_grab(UUxtGrabTargetComponent* grab_targ
 	}
 }
 
-/** 
-* Called by menu right before it destroys itself 
-*/
 void A_procedural_mesh_actor::on_assignment_menu_closed()
 {
 	active_menu_ = nullptr;
+}
+
+void A_procedural_mesh_actor::set_assignment_state(assignment_type assignment)
+{
+	if (current_assignment_ == assignment) return;
+
+	current_assignment_ = assignment;
+	mesh->SetCustomDepthStencilValue(assignment_to_stencil(assignment));
+	mesh->MarkRenderStateDirty();
+}
+
+uint8 A_procedural_mesh_actor::assignment_to_stencil(assignment_type assignment) const
+{
+	switch (assignment)
+	{
+	case assignment_type::HUMAN:
+		return 1;
+
+	case assignment_type::ROBOT:
+		return 2;
+
+	default:
+		return 0;
+	}
 }

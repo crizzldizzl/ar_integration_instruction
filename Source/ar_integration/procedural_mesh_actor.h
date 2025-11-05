@@ -64,6 +64,11 @@ public:
 	 */
 	A_procedural_mesh_actor();
 
+	/*
+	 * sets the assignment state and updates material stencil value
+	 */
+	void set_assignment_state(assignment_type assignment);
+
 	/**
 	 * generates the mesh from data and sets the procedural mesh 
 	 */
@@ -98,8 +103,15 @@ public:
 
 protected:
 
-	// Called when the game starts or when spawned
+	/*
+	 * Called when the game starts or when spawned
+	 */
 	virtual void BeginPlay() override;
+
+	/*
+	 * Called when properties are changed in editor or actor is spawned
+	 */
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 private:
 
@@ -111,6 +123,11 @@ private:
 	UFUNCTION()
 	void handle_end_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data);
 
+	/*
+	 * converts assignment type to stencil value
+	 */
+	uint8 assignment_to_stencil(assignment_type assignment) const;
+	
 	/*
 	 * @var global_opaque global material for meshes with data
 	 */
@@ -136,6 +153,12 @@ private:
 	UMaterialInstanceDynamic* wireframe_material_;
 
 	/*
+	 * @var grab_target_ grab target component for handling grab events
+	 */
+	UPROPERTY()
+	UUxtGrabTargetComponent* grab_target_;
+
+	/*
 	 * @var assignment_menu_class class of the assignment menu actor to spawn
 	 */
 	UPROPERTY(EditDefaultsOnly)
@@ -146,4 +169,22 @@ private:
 	 */
 	UPROPERTY()
 	A_assignment_menu_actor* active_menu_;
+
+	/*
+	 * @var current_assignment_ current assignment state of the mesh
+	 */
+	UPROPERTY()
+	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
+
+public:
+	// --- editor-only properties for debug and test --- 
+
+	UPROPERTY(EditAnywhere, Category = "Editor Test")
+	bool b_register_in_editor_ = true;
+
+	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "bRegisterInEditor"))
+	FString editor_mesh_id_;
+
+	UPROPERTY(EditAnywhere, Category = "Editor Test", meta = (EditCondition = "bRegisterInEditor"))
+	int32 editor_pn_id_ = -1;
 };

@@ -132,16 +132,24 @@ void A_assignment_menu_actor::on_unassign_pressed(UUxtPressableButtonComponent* 
 
 void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
 {
+	// closes menu if game state or parent block are invalid.
     if (!cached_game_state_.IsValid() || !parent_block_.IsValid())
     {
         close_menu();
         return;
     }
 
+	// update game state and send selection to server.
     cached_game_state_->set_assignment_mode(assignment);
     cached_game_state_->select_mesh_by_actor(parent_block_.Get());
 
+	// update parent block assignment state.
+	parent_block_->set_assignment_state(assignment);
+
+	// notify parent block that menu is closed.
     parent_block_->on_assignment_menu_closed();
+
+	// close menu after assignment.
     close_menu();
 }
 

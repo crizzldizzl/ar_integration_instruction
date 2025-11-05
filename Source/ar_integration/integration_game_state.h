@@ -6,6 +6,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Blueprint.h"
 #include "Engine/TextRenderActor.h"
+#include "Engine/PostProcessVolume.h"
 #include "Components/TextRenderComponent.h"
 
 #include "grpc_channel.h"
@@ -369,16 +370,16 @@ private:
 	U_grpc_channel* channel_ = nullptr;
 
 	/**
-	 * procedural mesh actor blueprint class --> for extended selection features through blueprint
-	 */
-	UPROPERTY()
-	UClass* procedural_mesh_bp_class_ = nullptr;
-
-	/**
 	 * current assignment mode for selection client
 	 */
 	UPROPERTY()
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
+
+	/**
+	 * outline post process material for assignment visualization
+	 */
+	UPROPERTY()
+	UMaterialInterface* assignment_outline_material_ = nullptr;
 
 	/**
 	 * text actor for debug information
@@ -397,5 +398,10 @@ private:
 	{
 		using type = std::remove_const_t<std::remove_reference_t<T>>;
 	};
+
+	// editor-only functions for testing and debug
+public:
+
+	void register_editor_placeholder(const FString& id, A_procedural_mesh_actor* actor, int32 pn_id);
 
 };
