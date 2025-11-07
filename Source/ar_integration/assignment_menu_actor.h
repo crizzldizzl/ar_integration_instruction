@@ -33,7 +33,7 @@ public:
 	A_assignment_menu_actor();
 
 	/** 
-	* Called immediately after spawn to wire the block we’re controlling
+	* Called immediately after spawn to wire the block were controlling
 	*/
 	void initialise(A_procedural_mesh_actor* in_parent);
 

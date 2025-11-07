@@ -85,7 +85,7 @@ void A_integration_game_state::Tick(float DeltaSeconds)
 	std::unique_lock top_lock(anchor_mutex_);
 
 #if PLATFORM_HOLOLENS
-	if (!anchor_pin) return;
+	if (!anchor_pin_) return;
 #endif
 	
 	TArray<FString> to_delete;
@@ -177,7 +177,7 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 	 * resync if anchor is set
 	 */
 #if PLATFORM_HOLOLENS
-	if (anchor_pin)
+	if (anchor_pin_)
 #endif
 	{
 		sync_and_subscribe();
@@ -351,7 +351,7 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 	}
 
 #if PLATFORM_HOLOLENS
-	hand_tracking_client->update_local_transform(anchor_pin->GetLocalToWorldTransform().Inverse());
+	hand_tracking_client->update_local_transform(anchor_pin_->GetLocalToWorldTransform().Inverse());
 #endif
 	hand_tracking_client->async_transmit_data();
 
