@@ -7,11 +7,21 @@ package generated;
 option optimize_for = LITE_RUNTIME;
 option cc_enable_arenas = true;
 
-service selection_com {
-  rpc send_selection (SelectionMessage) returns (google.protobuf.Empty);
+enum assignment_type 
+{
+	UNASSIGNED = 0;
+	HUMAN = 1;
+	ROBOT = 2;
 }
 
-message SelectionMessage {
-  string object_id = 1;
-  int32 pn_id = 2;
+message selection_message 
+{
+	string object_id = 1;
+	int32 pn_id = 2;
+	assignment_type assignment = 3;
+}
+
+service selection_com 
+{
+  rpc send_selection (selection_message) returns (google.protobuf.Empty);
 }

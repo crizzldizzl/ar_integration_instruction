@@ -13,6 +13,14 @@
 
 #include "selection_client.generated.h"
 
+UENUM(BlueprintType)
+enum class assignment_type : uint8
+{
+	UNASSIGNED = 0 UMETA(DisplayName = "UNASSIGNED"),
+	HUMAN = 1 UMETA(DisplayName = "HUMAN"),
+	ROBOT = 2 UMETA(DisplayName = "ROBOT")
+};
+
 /**
  * @class U_selection_client
  * client for sending selected mesh-object IDs to the server
@@ -29,18 +37,27 @@ public:
 	 * @return false if channel not ready or sending failed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Selection")
-	bool send_selection(const FString& mesh_id, int32 pn_id);
+	bool send_selection(const FString& mesh_id, int32 pn_id, assignment_type assignment);
 
+	/**
+	 * stops implementation
+	 */
 	virtual void stop_Implementation() override {}
+
+	/**
+	 * handles connection state changes
+	 */
 	virtual void state_change_Implementation(connection_state old_state, connection_state new_state) override {}
 
 private:
-	std::unique_ptr<generated::selection_com::Stub> stub;
 
-	BASE_CLIENT_BODY(
+	std::unique_ptr<generated::selection_com::Stub> stub_;
+
+	BASE_CLIENT_BODY
+	(
 		[this](const std::shared_ptr<grpc::Channel>& ch)
 		{
-			stub = generated::selection_com::NewStub(ch);
+			stub_ = generated::selection_com::NewStub(ch);
 		}
 	)
 };

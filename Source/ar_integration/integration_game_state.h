@@ -5,6 +5,9 @@
 #include "GameFramework/GameStateBase.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Blueprint.h"
+#include "Engine/TextRenderActor.h"
+#include "Engine/PostProcessVolume.h"
+#include "Components/TextRenderComponent.h"
 
 #include "grpc_channel.h"
 #include "debug_client.h"
@@ -104,11 +107,40 @@ public:
 	void delete_object(const FString& id);
 
 	/**
+	* Sets assignment mode for selection client (HUMAN, ROBOT, UNASSIGNED)
+	*/
+	UFUNCTION(BlueprintCallable)
+	void set_assignment_mode(assignment_type assignment);
+
+	/**
+	* Gets current assignment mode for selection client
+	*/
+	UFUNCTION(BlueprintPure)
+	assignment_type get_assignment_mode() const;
+
+	/**
 	* Selects mesh-object by its id
 	*/
 	UFUNCTION(BlueprintCallable)
 	void select_mesh_by_actor(A_procedural_mesh_actor* actor);
 
+	/**
+	 * thread safe update of anchor
+	 *
+	 * @param anchor_transform new transform for the workspace anchor
+	 *
+	 * @attend side-effect deletes old anchor and safes new one
+	 */
+	UFUNCTION(BlueprintCallable)
+	void update_anchor_transform(const FTransform& anchor_transform);
+
+	/**
+	 * synchronizes objects with server and subscribes to object changes
+	 * if not already synced and if object_client is valid
+	 */
+	UFUNCTION(BlueprintCallable)
+	void sync_and_subscribe(bool forced = false);
+	
 	/**
 	 * Map of all active actors in the scene by id
 	 */
@@ -160,23 +192,6 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	U_franka_shadow_controller* franka_controller_;
 
-	/**
-	 * thread safe update of anchor
-	 *
-	 * @param anchor_transform new transform for the workspace anchor
-	 *
-	 * @attend side-effect deletes old anchor and safes new one
-	 */
-	UFUNCTION(BlueprintCallable)
-	void update_anchor_transform(const FTransform& anchor_transform);
-
-	/**
-	 * synchronizes objects with server and subscribes to object changes
-	 * if not already synced and if object_client is valid
-	 */
-	UFUNCTION(BlueprintCallable)
-	void sync_and_subscribe(bool forced = false);
-
 	UPROPERTY(BlueprintAssignable)
 	F_post_actors_delegate on_post_actors;
 
@@ -190,13 +205,39 @@ public:
 
 private:
 
+	/**
+	 * spawn mesh actor by its id
+	 */
+	A_procedural_mesh_actor* spawn_mesh_actor(const FString& id);
+
+	/**
+	 * spawn mesh actor with @ref{spawn_mesh_actor} or returns existing one
+	 */
+	A_procedural_mesh_actor* find_or_spawn(const FString& id);
+
+	/**
+	 * updates cached meshes for pending prototypes
+	 */
 	void update_meshes(const TSet<FString>& pending_proto);
+
+	/**
+	 * updates/deletes actors based on to_delete list
+	 */
 	void update_actors(const TArray<FString>& to_delete);
-	
+
+	/**
+	 * handles object instance spawning/updating
+	 */
 	void handle_object_instance(const F_object_instance& instance);
 
+	/**
+	 * initializes anchor pin and pin component
+	 */
 	void init();
 
+	/**
+	 * retrieves object instance id from variant
+	 */
 	static FString get_object_instance_id(const F_object_instance& data);
 
 	/*
@@ -204,26 +245,82 @@ private:
 	 * @returns false if neither is present
 	 * proto_id[in]; proto[out]; mesh[out]
 	 */
-	bool get_prototype_and_mesh(
-		const FString& proto_id, 
-		const F_object_prototype*& proto, 
-		const F_mesh_data*& mesh);
+	bool get_prototype_and_mesh(const FString& proto_id, const F_object_prototype*& proto, const F_mesh_data*& mesh);
 
 	/**
 	 * creates procedural mesh for a prototype and its mesh
 	 */
-	static F_procedural_mesh_data create_proc_mesh_data(
-		const F_object_prototype& proto,
-		const F_mesh_data& mesh);
+	static F_procedural_mesh_data create_proc_mesh_data(const F_object_prototype& proto, const F_mesh_data& mesh);
 
-	bool synced = false;
-	FString old_target = "";
+	/**
+	 * handle voxels!
+	 * TODO:: connect delegate, test, pin to position of robot relative to the anchor!
+	 */
+	UFUNCTION()
+	void handle_voxels(const F_voxel_data& data);
+
+	/**
+	 * handle tcps!
+	 */
+	UFUNCTION()
+	void handle_tcps(const TArray<FVector>& data);
+
+	/**
+	 * handle joints!
+	 */
+	UFUNCTION()
+	void handle_joints(const FFrankaJoints& data);
+
+	/**
+	 * handle synced joints!
+	 */
+	UFUNCTION()
+	void handle_sync_joints(const TArray<F_joints_synced>& data);
+
+	/**
+	 * indicates whether synchronization has already happened
+	 */
+	bool synced_ = false;
+
+	/**
+	 * old target for channel change detection
+	 */
+	FString old_target_ = "";
+
+	/**
+	 * indicates whether application is starting
+	 * used for loading existing anchor pin at startup
+	 */
+	bool starting_ = UARBlueprintLibrary::IsARPinLocalStoreSupported();
+
+	/**
+	 * save name of the anchor
+	 */
+	FName pin_save_name_ = "ROBOT_AR_PIN";
+
+	/**
+	 * set uncached prototypes
+	 */
+	TSet<FString> pending_prototypes_;
+
+	/**
+	 * lists for object updates
+	 */
+	TArray<F_object_instance> set_list_;
+	TArray<FString> delete_list_;
+
+	/**
+	 * mutexes for asynchronous actor/anchor manipulation
+	 */
+	std::mutex delete_mutex_;
+	std::mutex actor_mutex_;
+	std::mutex anchor_mutex_;
 
 	/**
 	 * workspace anchor
 	 */
 	UPROPERTY()
-	UARPin* anchor_pin;
+	UARPin* anchor_pin_;
 
 	/**
 	 * component pinned to workspace anchor
@@ -231,59 +328,52 @@ private:
 	 * component
 	 */
 	UPROPERTY()
-	USceneComponent* pin_component;
+	USceneComponent* pin_component_;
 
+	/**
+	 * correction component for adjusting workspace origin
+	 * to better fit real world
+	 */
 	UPROPERTY()
-	USceneComponent* correction_component;
+	USceneComponent* correction_component_;
 
 	/**
 	 * Map of cached meshes by their name
 	 */
 	UPROPERTY()
-	TMap<FString, F_mesh_data> meshes;
+	TMap<FString, F_mesh_data> meshes_;
 
 	/**
 	 * Cache of all received object instances (incl. PN-ID)
 	 * -Used to resolve Petri-Net element selection on the HoloLens.
 	 */
 	UPROPERTY()
-	TMap<FString, F_object_instance_data> object_instances;
+	TMap<FString, F_object_instance_data> object_instances_;
 
 	/**
 	 * Cache of all received box instances (incl. PN-ID corresponding to a given mesh!)
 	 * -Used to resolve Petri-Net element selection on the HoloLens.
 	 */
 	UPROPERTY()
-	TMap<FString, F_object_instance_colored_box> box_instances;
+	TMap<FString, F_object_instance_colored_box> box_instances_;
 
 	/**
 	 * Map of cached object prototypes by their name
 	 */
 	UPROPERTY()
-	TMap<FString, F_object_prototype> object_prototypes;
+	TMap<FString, F_object_prototype> object_prototypes_;
 
 	/**
 	 * the applications channel
 	 */
 	UPROPERTY()
-	U_grpc_channel* channel = nullptr;
+	U_grpc_channel* channel_ = nullptr;
 
+	/**
+	 * current assignment mode for selection client
+	 */
 	UPROPERTY()
-	UClass* procedural_mesh_BP_class = nullptr;
-
-	bool starting = UARBlueprintLibrary::IsARPinLocalStoreSupported();
-
-	/**
-	 * save name of the anchor
-	 */
-	FName pin_save_name = "ROBOT_AR_PIN";
-
-	/**
-	 * mutexes for asynchronous actor/anchor manipulation 
-	 */
-	std::mutex delete_mutex;
-	std::mutex actor_mutex;
-	std::mutex anchor_mutex;
+	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
 
 	/**
 	 * removes const ref from type signature
@@ -297,41 +387,4 @@ private:
 		using type = std::remove_const_t<std::remove_reference_t<T>>;
 	};
 
-	/**
-	 * spawn mesh actor by its id
-	 */
-	A_procedural_mesh_actor* spawn_mesh_actor(const FString& id);
-
-	/**
-	 * spawn mesh actor with @ref{spawn_mesh_actor} or returns existing one
-	 */
-	A_procedural_mesh_actor* find_or_spawn(const FString& id);
-
-	/**
-	 * handle voxels!
-	 * TODO:: connect delegate, test, pin to position of robot relative to the anchor!
-	 */
-	UFUNCTION()
-	void handle_voxels(const F_voxel_data& data);
-
-	UFUNCTION()
-	void handle_tcps(const TArray<FVector>& data);
-
-	UFUNCTION()
-	void handle_joints(const FFrankaJoints& data);
-
-	UFUNCTION()
-	void handle_sync_joints(const TArray<F_joints_synced>& data);
-
-
-	/**
-	 * set uncached prototypes
-	 */
-	TSet<FString> pending_prototypes;
-
-	/**
-	 * lists for object updates
-	 */
-	TArray<F_object_instance> set_list;
-	TArray<FString> delete_list;
 };
