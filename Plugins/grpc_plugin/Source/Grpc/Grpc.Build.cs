@@ -133,7 +133,7 @@ public class Grpc : ModuleRules
         Regex reg = new Regex(@"^([^* :\[\]]*)(?:\[[^\]]*\])?:(.*)", RegexOptions.Multiline);
         HashSet<string> Packages = new HashSet<string>();
         
-        string unparsed = runProgram(vcpkgPaths.basePaths.exe, "--overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) + " --vcpkg-root " + vcpkgPaths.basePaths.root + " depend-info " + package + ":" + vcpkgPaths.tripletName, true);
+        string unparsed = runProgram(vcpkgPaths.basePaths.exe, /*"--overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) + */" --vcpkg-root " + vcpkgPaths.basePaths.root + " depend-info " + package + ":" + vcpkgPaths.tripletName, true);
         //Console.WriteLine(unparsed);
         unparsed = unparsed.Replace(":" + vcpkgPaths.tripletName, "");
 
@@ -332,7 +332,7 @@ public class Grpc : ModuleRules
 
     private void makeReleaseOnly(VcpkgPaths paths)
     {
-        if (File.ReadLines(paths.tripletFile).Contains("VCPKG_BUILD_TYPE release"))
+        if (File.ReadLines(paths.tripletFile).Contains("VCPKG_BUILD_TYPE release") && File.ReadLines(paths.tripletFile).Contains("VCPKG_PLATFORM_TOOLSET_VERSION \"14.38\""))
             return;
 
         var tempFile = Path.GetTempFileName();
@@ -340,7 +340,8 @@ public class Grpc : ModuleRules
 
         File.WriteAllLines(tempFile, linesToKeep);
         File.AppendAllLines(tempFile, new string[] { 
-            "set(VCPKG_BUILD_TYPE release)"
+            "set(VCPKG_BUILD_TYPE release)",
+            "set(VCPKG_PLATFORM_TOOLSET_VERSION \"14.38\")"
         });
         
         File.Move(tempFile, paths.tripletFile, true);
@@ -375,14 +376,14 @@ public class Grpc : ModuleRules
             runProgram(basePaths.bootstrap, "-disableMetrics");
         }, false);
 
-        string VcpkgCmd0 = "install --recurse --overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) + " --host-triplet=" + mHostTriplet + " --vcpkg-root " + basePaths.root + " vcpkg-cmake";
+        string VcpkgCmd0 = "install --recurse"/* --overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) */+ " --host-triplet=" + mHostTriplet + " --vcpkg-root " + basePaths.root + " vcpkg-cmake";
         runProgram(basePaths.exe, VcpkgCmd0);
 
         makeReleaseOnly(HostPaths);
         if (mHostTriplet != mTargetTriplet)
             makeReleaseOnly(TargetPaths);
 
-        string VcpkgCmd = "install --recurse --overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) + " --host-triplet=" + mHostTriplet + " --vcpkg-root " + basePaths.root;
+        string VcpkgCmd = "install --recurse"/* --overlay-ports=" + Path.GetFullPath(Path.Combine(PluginDirectory, "Source", "overlay")) */+ " --host-triplet=" + mHostTriplet + " --vcpkg-root " + basePaths.root;
         string InstallMessage = "Installing [";
         HashSet<string> SubPackages = new HashSet<string>();
         foreach (var Package in Packages)
@@ -414,6 +415,9 @@ public class Grpc : ModuleRules
 
         Console.WriteLine("Added header root: " + TargetPaths.include);
         PublicIncludePaths.Add(TargetPaths.include);
+        //string[] allSubDirectories = Directory.GetDirectories(TargetPaths.include, "*", SearchOption.AllDirectories);
+        //foreach (string subDirectory in allSubDirectories)
+          //  PublicIncludePaths.Add(subDirectory);
 
         {
             int i = 0;

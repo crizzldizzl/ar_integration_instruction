@@ -6,16 +6,11 @@
 #include "Windows/AllowWindowsPlatformAtomics.h"
 #include <winnt.h>
 
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0A00
-#endif
+#undef verify
 
-#ifndef _INC_WINDOWS
-// define only if not already present
-#ifndef UE_MEMORY_BARRIER
-#define UE_MEMORY_BARRIER
-static void UnrealMemoryBarrier() {}
-#endif
+#ifndef MEMORY_BARRIER
+#define MEMORY_BARRIER
+static void MemoryBarrier() {}
 #endif
 
 THIRD_PARTY_INCLUDES_START
