@@ -13,6 +13,8 @@
 #include "Windows/AllowWindowsPlatformAtomics.h"
 #include <winnt.h>
 
+#undef verify
+
 #ifndef MEMORY_BARRIER
 #define MEMORY_BARRIER
 static void MemoryBarrier() {}

@@ -33,7 +33,7 @@ public:
 	A_assignment_menu_actor();
 
 	/** 
-	* Called immediately after spawn to wire the block we’re controlling
+	* Called immediately after spawn to wire the block were controlling
 	*/
 	void initialise(A_procedural_mesh_actor* in_parent);
 
@@ -50,15 +50,25 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	UUxtBackPlateComponent* back_plate;
 
-	/**
-	 * button actors (spawned as child actors, for hierarchical organization)
+	/*
+	 * Button classes to spawn --> to avoid premature loading and crashes
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UChildActorComponent* robot_button_component;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UChildActorComponent* human_button_component;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UChildActorComponent* unassign_button_component;
+	UPROPERTY()
+	TSubclassOf<AUxtPressableButtonActor> robot_button_class;
+	UPROPERTY()
+	TSubclassOf<AUxtPressableButtonActor> human_button_class;
+	UPROPERTY()
+	TSubclassOf<AUxtPressableButtonActor> unassign_button_class;
+
+	/*
+	 * Button instances --> spawned button actors
+	 */
+	UPROPERTY()
+	AUxtPressableButtonActor* robot_button_instance = nullptr;
+	UPROPERTY()
+	AUxtPressableButtonActor* human_button_instance = nullptr;
+	UPROPERTY()
+	AUxtPressableButtonActor* unassign_button_instance = nullptr;
 
 protected:
 
@@ -85,6 +95,16 @@ protected:
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
+
+	/*
+	 * Spawns a button of the given class at the given relative location
+	 */
+	void spawn_button
+	(
+		TSubclassOf<AUxtPressableButtonActor> button_class,
+		AUxtPressableButtonActor*& out_instance,
+		const FVector& relative_location
+	);
 
 	// ------------------------------ private components ------------------------------
 

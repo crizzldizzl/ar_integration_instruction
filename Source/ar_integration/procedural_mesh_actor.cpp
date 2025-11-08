@@ -47,20 +47,6 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	
 	mesh->bUseAsyncCooking = true;
 
-	static ConstructorHelpers::FClassFinder<A_assignment_menu_actor> assignment_menu_bp
-	(
-		TEXT("Blueprint'/Game/assignment_menu.assignment_menu_C'")
-	);
-
-	if (assignment_menu_bp.Succeeded())
-	{
-		assignment_menu_class_ = assignment_menu_bp.Class;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[A_procedural_mesh_actor] Could not load the assignment menu blueprint!"));
-	}
-
 	active_menu_ = nullptr;
 
 	// create text render components for assignment labels

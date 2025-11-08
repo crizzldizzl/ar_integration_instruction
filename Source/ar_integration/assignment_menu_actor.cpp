@@ -3,6 +3,7 @@
 #include "integration_game_state.h"
 #include "procedural_mesh_actor.h"
 #include "Input/UxtPointerComponent.h"
+#include "UObject/ConstructorHelpers.h"
 
 A_assignment_menu_actor::A_assignment_menu_actor()
 {
@@ -18,21 +19,38 @@ A_assignment_menu_actor::A_assignment_menu_actor()
     back_plate->SetMobility(EComponentMobility::Movable);
     back_plate->bEditableWhenInherited = true;
 
-    // create child actor components that instantiate pressable buttons.
-    robot_button_component = CreateDefaultSubobject<UChildActorComponent>(TEXT("robot_button"));
-    robot_button_component->SetupAttachment(back_plate);
-    robot_button_component->SetRelativeLocation(FVector(0.f, 0.f, 6.f));
-    robot_button_component->SetChildActorClass(AUxtPressableButtonActor::StaticClass());
+    static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> robot_button_bp(TEXT("Blueprint'/Game/robot_button_bp.robot_button_bp_C'"));
+    if (robot_button_bp.Succeeded())
+    {
+        robot_button_class = robot_button_bp.Class;
+        UE_LOG(LogTemp, Log, TEXT("Loaded robot button %s"), *robot_button_class->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Failed to load robot_button_bp."));
+    }
 
-    human_button_component = CreateDefaultSubobject<UChildActorComponent>(TEXT("human_button"));
-    human_button_component->SetupAttachment(back_plate);
-    human_button_component->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
-    human_button_component->SetChildActorClass(AUxtPressableButtonActor::StaticClass());
+    static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> human_button_bp(TEXT("Blueprint'/Game/human_button_bp.human_button_bp_C'"));
+    if (human_button_bp.Succeeded())
+    {
+        human_button_class = human_button_bp.Class;
+        UE_LOG(LogTemp, Log, TEXT("Loaded human button %s"), *human_button_class->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Failed to load human_button_bp."));
+        UE_LOG(LogTemp, Log, TEXT("Loaded unassigned button %s"), *unassign_button_class->GetName());
+    }
 
-    unassign_button_component = CreateDefaultSubobject<UChildActorComponent>(TEXT("unassign_button"));
-    unassign_button_component->SetupAttachment(back_plate);
-    unassign_button_component->SetRelativeLocation(FVector(0.f, 0.f, -6.f));
-    unassign_button_component->SetChildActorClass(AUxtPressableButtonActor::StaticClass());
+    static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> unassign_button_bp(TEXT("Blueprint'/Game/unassign_button_bp.unassign_button_bp_C'"));
+    if (unassign_button_bp.Succeeded())
+    {
+        unassign_button_class = unassign_button_bp.Class;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Failed to load unassign_button_bp."));
+    }
 }
 
 void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
@@ -42,22 +60,6 @@ void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
     if (APlayerController* player_controller = UGameplayStatics::GetPlayerController(this, 0))
     {
         cached_game_state_ = player_controller->GetWorld()->GetGameState<A_integration_game_state>();
-    }
-
-    // configure buttons.
-    if (auto* robot_button_actor = Cast<AUxtPressableButtonActor>(robot_button_component->GetChildActor()))
-    {
-        robot_button_actor->GetButtonComponent()->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_robot_pressed);
-    }
-
-    if (auto* human_button_actor = Cast<AUxtPressableButtonActor>(human_button_component->GetChildActor()))
-    {
-        human_button_actor->GetButtonComponent()->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_human_pressed);
-    }
-
-    if (auto* unassign_button_actor = Cast<AUxtPressableButtonActor>(unassign_button_component->GetChildActor()))
-    {
-        unassign_button_actor->GetButtonComponent()->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_unassign_pressed);
     }
 
     if (APlayerCameraManager* camera = UGameplayStatics::GetPlayerCameraManager(this, 0))
@@ -77,6 +79,36 @@ void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
 void A_assignment_menu_actor::BeginPlay()
 {
     Super::BeginPlay();
+
+	// spawn buttons
+    spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 6.f));
+    spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, 0.f));
+    spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, -6.f));
+
+	// bind button events
+    if (robot_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = robot_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_robot_pressed);
+        }
+    }
+
+    if (human_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = human_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_human_pressed);
+        }
+    }
+
+    if (unassign_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = unassign_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_unassign_pressed);
+        }
+    }
 }
 
 void A_assignment_menu_actor::Tick(float DeltaSeconds)
@@ -111,6 +143,20 @@ void A_assignment_menu_actor::Tick(float DeltaSeconds)
 
 void A_assignment_menu_actor::close_menu()
 {
+    auto destroy_button = 
+    [](AUxtPressableButtonActor*& button)
+    {
+        if (button)
+        {
+            button->Destroy();
+            button = nullptr;
+        }
+    };
+
+    destroy_button(robot_button_instance);
+    destroy_button(human_button_instance);
+    destroy_button(unassign_button_instance);
+
     Destroy();
 }
 
@@ -150,5 +196,30 @@ void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
 
 	// close menu after assignment.
     close_menu();
+}
+
+void A_assignment_menu_actor::spawn_button
+(
+    TSubclassOf<AUxtPressableButtonActor> button_class,
+    AUxtPressableButtonActor*& out_instance,
+    const FVector& relative_location
+)
+{
+    if (!button_class)
+    {
+        button_class = AUxtPressableButtonActor::StaticClass();
+    }
+
+    if (!back_plate) return;
+
+    FActorSpawnParameters params;
+    params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    params.Owner = this;
+
+    out_instance = GetWorld()->SpawnActor<AUxtPressableButtonActor>(button_class, params);
+    if (!out_instance) return;
+
+    out_instance->AttachToComponent(back_plate, FAttachmentTransformRules::KeepRelativeTransform);
+    out_instance->SetActorRelativeLocation(relative_location);
 }
 
