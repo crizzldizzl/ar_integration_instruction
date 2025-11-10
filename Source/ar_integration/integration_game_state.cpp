@@ -164,11 +164,11 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 	set_list_.Empty();
 	delete_list_.Empty();
 
-	/*if (anchor_pin)
+	/*if (anchor_pin_)
 	{
 		UARBlueprintLibrary::UnpinComponent(pin_component);
-		UARBlueprintLibrary::RemovePin(anchor_pin);
-		anchor_pin = nullptr;
+		UARBlueprintLibrary::RemovePin(anchor_pin_);
+		anchor_pin_ = nullptr;
 	}*/
 
 	I_Base_Client_Interface::Execute_set_channel(hand_tracking_client, channel_);

@@ -179,7 +179,7 @@ private:
 	 * @var assignment_menu_class class of the assignment menu actor to spawn
 	 */
 	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<A_assignment_menu_actor> assignment_menu_class_;
+	TSubclassOf<A_assignment_menu_actor> assignment_menu_class_ = A_assignment_menu_actor::StaticClass();
 
 	/*
 	 * @var active_menu currently active assignment menu

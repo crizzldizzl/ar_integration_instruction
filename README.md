@@ -50,3 +50,17 @@
     2. Package for HoloLens in Editor
     3. Upload the new package via device portal
     4. Compile or Hot-Reload the changes for development editor x64, to keep the environments behaviour in sync (optional)
+
+# Troubleshooting
+- To spare future developers hours and hours of pain and suffering, here comes one the most important pieces of information:
+
+HOW TO DEBUG A HOLOLENS APP WHILE IT IS RUNNING ON THE DEVICE
+
+0. INSTALL THE WIN-UI DEVELOPMENT WORKLOAD IN VISUAL STUDIO
+1. In Visual Studio, open Debug -> Other Debug Targets -> Debug Installed App Package.
+2. The connection type must be "Remote machine"
+3. Enter the IP address of the HoloLens device in the Adress field and let the auth method on "Universal (Unencrypted Protocol)".
+4. After some time (i may take some), you can pair with the device by entering the PIN shown on the HoloLens (Settings --> Update and Security --> For Developers --> Pair device).
+5. Select your app from the list and make sure "Enable native code debugging" is checked.
+6. Click "Start" to start debugging. (the App will then Start on the HoloLens and Debug info will be transmitted to your Visual Studio) --> Make sure to use a build that enables debug information
+7. Read the output window for information about crashes, logs, etc. 
