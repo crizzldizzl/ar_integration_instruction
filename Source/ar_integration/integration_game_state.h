@@ -142,6 +142,24 @@ public:
 	void sync_and_subscribe(bool forced = false);
 	
 	/**
+	 * refreshes scenario mode from selection client
+	 */
+	UFUNCTION(BlueprintCallable)
+	void refresh_scenario();
+
+	/**
+	 * gets current scenario mode from selection client
+	 */
+	UFUNCTION(BlueprintPure)
+	scenario_type get_scenario_mode() const;
+
+	/**
+	 * checks whether given assignment is allowed in current scenario
+	 */
+	UFUNCTION(BlueprintPure)
+	bool is_assignment_allowed(assignment_type assignment) const;
+
+	/**
 	 * Map of all active actors in the scene by id
 	 */
 	UPROPERTY(BlueprintReadOnly)
@@ -251,6 +269,11 @@ private:
 	 * creates procedural mesh for a prototype and its mesh
 	 */
 	static F_procedural_mesh_data create_proc_mesh_data(const F_object_prototype& proto, const F_mesh_data& mesh);
+
+	/**
+	 * removes invalid assignment requests based on current scenario
+	 */
+	assignment_type sanitize_assignment(assignment_type requested) const;
 
 	/**
 	 * handle voxels!
@@ -376,6 +399,12 @@ private:
 	assignment_type current_assignment_ = assignment_type::UNASSIGNED;
 
 	/**
+	 * current scenario mode
+	 */
+	UPROPERTY()
+	scenario_type scenario_mode_ = scenario_type::MIXED;
+
+	/**
 	 * removes const ref from type signature
 	 *
 	 * provides easier way to set value of TVariant
@@ -386,5 +415,9 @@ private:
 	{
 		using type = std::remove_const_t<std::remove_reference_t<T>>;
 	};
+
+	// only for testing purposes
+
+	scenario_type scenario_override = scenario_type::DELEGATE_ONLY;
 
 };

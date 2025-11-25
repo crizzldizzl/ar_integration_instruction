@@ -13,12 +13,26 @@
 
 #include "selection_client.generated.h"
 
+/*
+ * enumeration for assignment types
+ */
 UENUM(BlueprintType)
 enum class assignment_type : uint8
 {
 	UNASSIGNED = 0 UMETA(DisplayName = "UNASSIGNED"),
 	HUMAN = 1 UMETA(DisplayName = "HUMAN"),
 	ROBOT = 2 UMETA(DisplayName = "ROBOT")
+};
+
+/*
+ * enumeration for scenario types
+ */
+UENUM(BlueprintType)
+enum class scenario_type : uint8
+{
+	DELEGATE_ONLY = 0 UMETA(DisplayName = "Delegate only"),
+	RESERVE_ONLY = 1 UMETA(DisplayName = "Reserve only"),
+	MIXED = 2 UMETA(DisplayName = "Mixed"),
 };
 
 /**
@@ -38,6 +52,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Selection")
 	bool send_selection(const FString& mesh_id, int32 pn_id, assignment_type assignment);
+
+	/*
+	 * requests the scenario type from the server
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Selection")
+	bool request_scenario(scenario_type& scenario);
 
 	/**
 	 * stops implementation
