@@ -120,23 +120,15 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<A_procedural_mesh_actor> parent_block_;
 
+	/**
+	 * Follow Component for easy menu reachability and visibility
+	 */
+	UPROPERTY()
+	UUxtFollowComponent* follow_ = nullptr;
+
 	/** 
 	 * Cached pointer to the assignment game state 
 	 */
 	TWeakObjectPtr<class A_integration_game_state> cached_game_state_;
 
-	/*
-	 * to increase distance/decrease from camera when maintaining offset
-	 */
-	constexpr static float camera_offset_multiplier_ = 1.75f;
-
-	/** 
-	 * Whether there is a camera-relative offset to maintain 
-	 */
-	bool has_camera_relative_offset_ = false;
-
-	/** 
-	 * Camera-relative offset to maintain 
-	 */
-	FVector camera_offset_local_ = FVector::ZeroVector;
 };

@@ -40,7 +40,7 @@ void A_integration_game_state::BeginPlay()
 
 	//correction_component->RegisterComponent();
 	correction_component_->AttachToComponent(pin_component_, FAttachmentTransformRules::KeepRelativeTransform);
-	correction_component_->SetRelativeTransform(FTransform(FQuat{FRotator{0., 2., 0.}}, FVector(-0.4, 1.3, 0.), FVector::One()));
+	correction_component_->SetRelativeTransform(FTransform(FQuat{ FRotator{0., 2., 0.} }, FVector(-0.9, 2.8, 0.), FVector::One()));
 	/*pin_component->AttachToComponent(GetRootComponent(),
 		FAttachmentTransformRules::KeepWorldTransform);*/
 
@@ -75,7 +75,7 @@ void A_integration_game_state::BeginPlay()
 
 
 	// onlyfor testing purposes
-	refresh_scenario();
+	//refresh_scenario();
 
 	on_post_actors.Broadcast();
 }
@@ -121,7 +121,11 @@ void A_integration_game_state::Tick(float DeltaSeconds)
 
 void A_integration_game_state::change_channel(FString target, int32 retries)
 {
+	scenario_ready_ = false;
+
 	if (target == old_target_) return;
+
+	if (!channel_->construct(target, 400, retries)) return;
 
 	old_target_ = target;
 	synced_ = false;
@@ -370,16 +374,50 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 	franka_joint_sync_client->async_transmit_data();
 }
 
+//void A_integration_game_state::refresh_scenario()
+//{
+//
+//	scenario_ready_ = false;
+//
+//	// only for testing purposes
+//	/*if (false)
+//	{
+//		scenario_mode_ = scenario_override;
+//		current_assignment_ = sanitize_assignment(current_assignment_);
+//		UE_LOG(LogTemp, Log, TEXT("Scenario overridden to %d; assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+//		return;
+//	}*/
+//
+//	if (!selection_client)
+//	{
+//		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client null; cannot refresh scenario."));
+//		return;
+//	}
+//
+//	scenario_type new_mode = scenario_type::MIXED;
+//	if (!selection_client->request_scenario(new_mode))
+//	{
+//		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
+//		return;
+//	}
+//
+//	if (scenario_mode_ == new_mode)
+//	{
+//		scenario_ready_ = true;
+//		return;
+//	}
+//
+//	scenario_mode_ = new_mode;
+//	current_assignment_ = sanitize_assignment(current_assignment_);
+//
+//	scenario_ready_ = true;
+//
+//	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+//}
+
 void A_integration_game_state::refresh_scenario()
 {
-	// only for testing purposes
-	if (true)
-	{
-		scenario_mode_ = scenario_override;
-		current_assignment_ = sanitize_assignment(current_assignment_);
-		UE_LOG(LogTemp, Log, TEXT("Scenario overridden to %d; assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
-		return;
-	}
+	scenario_ready_ = false;
 
 	if (!selection_client)
 	{
@@ -390,16 +428,20 @@ void A_integration_game_state::refresh_scenario()
 	scenario_type new_mode = scenario_type::MIXED;
 	if (!selection_client->request_scenario(new_mode))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"),
+			static_cast<int32>(scenario_mode_));
 		return;
 	}
 
-	if (scenario_mode_ == new_mode) return;
+	if (scenario_mode_ != new_mode)
+	{
+		scenario_mode_ = new_mode;
+		current_assignment_ = sanitize_assignment(current_assignment_);
+		UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"),
+			static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+	}
 
-	scenario_mode_ = new_mode;
-	current_assignment_ = sanitize_assignment(current_assignment_);
-
-	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+	scenario_ready_ = true;
 }
 
 scenario_type A_integration_game_state::get_scenario_mode() const
@@ -410,35 +452,40 @@ scenario_type A_integration_game_state::get_scenario_mode() const
 bool A_integration_game_state::is_assignment_allowed(assignment_type assignment) const
 {
 	// only for testing purposes
-	switch (scenario_override)
-	{
-	case scenario_type::DELEGATE_ONLY:
-		return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
-
-	case scenario_type::RESERVE_ONLY:
-		return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
-
-		// by default allow all assignments
-	case scenario_type::MIXED:
-
-	default:
-		return true;
-	}
-
-	//switch (scenario_mode_)
+	//switch (scenario_override)
 	//{
 	//case scenario_type::DELEGATE_ONLY:
 	//	return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
 
 	//case scenario_type::RESERVE_ONLY:
 	//	return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
-	//
-	//// by default allow all assignments
+
+	//	// by default allow all assignments
 	//case scenario_type::MIXED:
 
 	//default:
 	//	return true;
 	//}
+
+	switch (scenario_mode_)
+	{
+	case scenario_type::DELEGATE_ONLY:
+		return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
+
+	case scenario_type::RESERVE_ONLY:
+		return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
+	
+	// by default allow all assignments
+	case scenario_type::MIXED:
+
+	default:
+		return true;
+	}
+}
+
+bool A_integration_game_state::is_scenario_ready() const
+{
+	return scenario_ready_;
 }
 
 void A_integration_game_state::update_meshes(const TSet<FString>& pending_proto)

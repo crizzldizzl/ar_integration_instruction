@@ -243,6 +243,16 @@ void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_ta
 	params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	params.Owner = this;
 
+	// check if scenario is even ready
+	if (A_integration_game_state* game_state = GetWorld()->GetGameState<A_integration_game_state>())
+	{
+		if (!game_state->is_scenario_ready())
+		{
+			game_state->refresh_scenario();
+			return;
+		}
+	}
+
 	active_menu_ = GetWorld()->SpawnActor<A_assignment_menu_actor>(assignment_menu_class_, spawn_location, spawn_rotation, params);
 	if (active_menu_)
 	{

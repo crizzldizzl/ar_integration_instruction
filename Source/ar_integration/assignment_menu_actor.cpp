@@ -19,6 +19,26 @@ A_assignment_menu_actor::A_assignment_menu_actor()
     back_plate->SetMobility(EComponentMobility::Movable);
     back_plate->bEditableWhenInherited = true;
 
+    // set scale
+    back_plate->SetRelativeScale3D(FVector(0.8f));
+
+    // configure follow component
+    follow_ = CreateDefaultSubobject<UUxtFollowComponent>(TEXT("follow"));
+    follow_->OrientationType = EUxtFollowOrientBehavior::FaceCamera;
+
+    // distane from user
+    follow_->DefaultDistance = 45.f;
+    follow_->MinimumDistance = 40.f;
+    follow_->MaximumDistance = 55.f;
+
+    // position to user
+    follow_->bUseFixedVerticalOffset = true;
+    follow_->FixedVerticalOffset = -10.f; //down
+
+    // ensure inside viewcone
+    follow_->MaxViewHorizontalDegrees = 35.f;
+    follow_->MaxViewVerticalDegrees = 25.f;
+
     static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> robot_button_bp(TEXT("Blueprint'/Game/robot_button_bp.robot_button_bp_C'"));
     if (robot_button_bp.Succeeded())
     {
@@ -57,23 +77,12 @@ void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
 {
     parent_block_ = in_parent;
 
-    if (APlayerController* player_controller = UGameplayStatics::GetPlayerController(this, 0))
+    if (APlayerController* pc = UGameplayStatics::GetPlayerController(this, 0))
     {
-        cached_game_state_ = player_controller->GetWorld()->GetGameState<A_integration_game_state>();
+        cached_game_state_ = pc->GetWorld()->GetGameState<A_integration_game_state>();
+        if (follow_) follow_->ActorToFollow = pc->PlayerCameraManager;
     }
-
-    if (APlayerCameraManager* camera = UGameplayStatics::GetPlayerCameraManager(this, 0))
-    {
-        FVector camera_location = camera->GetCameraLocation();
-        FRotator camera_rotation = camera->GetCameraRotation();
-        FTransform camera_world(camera_rotation, camera_location);
-
-        camera_offset_local_ = camera_world.InverseTransformPosition(GetActorLocation());
-
-		camera_offset_local_ *= camera_offset_multiplier_;
-
-        has_camera_relative_offset_ = true;
-    }
+    if (follow_) follow_->Recenter();
 }
 
 void A_assignment_menu_actor::BeginPlay()
@@ -84,7 +93,8 @@ void A_assignment_menu_actor::BeginPlay()
     spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, 6.f));
 
 	// check which assignments are allowed in current scenario
-	bool allow_robot, allow_human = false;
+    bool allow_robot = false;
+    bool allow_human = false;
     if (cached_game_state_.IsValid())
     {
         if (cached_game_state_->is_assignment_allowed(assignment_type::ROBOT))
@@ -146,23 +156,6 @@ void A_assignment_menu_actor::Tick(float DeltaSeconds)
     {
         Destroy();
         return;
-    }
-
-	// maintain camera-relative offset if applicable.
-    if (has_camera_relative_offset_)
-    {
-        if (APlayerCameraManager* camera = UGameplayStatics::GetPlayerCameraManager(this, 0))
-        {
-            const FTransform camera_world(camera->GetCameraRotation(), camera->GetCameraLocation());
-            const FVector new_location = camera_world.TransformPosition(camera_offset_local_);
-            SetActorLocation(new_location);
-
-            const FVector to_camera = camera_world.GetLocation() - new_location;
-            if (!to_camera.IsNearlyZero())
-            {
-                SetActorRotation(to_camera.Rotation());
-            }
-        }
     }
 
 }
@@ -249,7 +242,7 @@ void A_assignment_menu_actor::spawn_button
 
     out_instance = GetWorld()->SpawnActor<AUxtPressableButtonActor>(button_class, params);
     if (!out_instance) return;
-
+    out_instance->SetActorScale3D(FVector(0.8f));
     out_instance->AttachToComponent(back_plate, FAttachmentTransformRules::KeepRelativeTransform);
     out_instance->SetActorRelativeLocation(relative_location);
 }

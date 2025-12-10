@@ -160,6 +160,12 @@ public:
 	bool is_assignment_allowed(assignment_type assignment) const;
 
 	/**
+	 * checks whether rhe scenario is ready
+	 */
+	UFUNCTION()
+	bool is_scenario_ready() const;
+
+	/**
 	 * Map of all active actors in the scene by id
 	 */
 	UPROPERTY(BlueprintReadOnly)
@@ -403,6 +409,12 @@ private:
 	 */
 	UPROPERTY()
 	scenario_type scenario_mode_ = scenario_type::MIXED;
+
+	/**
+	 * flag to check if scenario is set successfully
+	 */
+	UPROPERTY()
+	bool scenario_ready_ = false;
 
 	/**
 	 * removes const ref from type signature
