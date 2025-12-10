@@ -80,10 +80,36 @@ void A_assignment_menu_actor::BeginPlay()
 {
     Super::BeginPlay();
 
-	// spawn buttons
-    spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 6.f));
-    spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, 0.f));
-    spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, -6.f));
+	// spawn buttons by allowed assignments
+    spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, 6.f));
+
+	// check which assignments are allowed in current scenario
+	bool allow_robot, allow_human = false;
+    if (cached_game_state_.IsValid())
+    {
+        if (cached_game_state_->is_assignment_allowed(assignment_type::ROBOT))
+        {
+            allow_robot = true;
+        }
+        if (cached_game_state_->is_assignment_allowed(assignment_type::HUMAN))
+        {
+            allow_human = true;
+        }
+    }
+
+    if (allow_robot && !allow_human)
+    {
+        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
+    }
+    else if (!allow_robot && allow_human)
+    {
+        spawn_button(human_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
+    }
+    else
+    {
+        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
+        spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, -6.f));
+    }
 
 	// bind button events
     if (robot_button_instance)
@@ -182,6 +208,11 @@ void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
     {
         close_menu();
         return;
+    }
+
+    if (!cached_game_state_->is_assignment_allowed(assignment))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Assignment %d not allowed in current scenario."), static_cast<int32>(assignment));
     }
 
 	// update game state and send selection to server.

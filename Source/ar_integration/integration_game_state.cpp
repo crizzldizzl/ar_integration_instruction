@@ -73,6 +73,10 @@ void A_integration_game_state::BeginPlay()
 
 	//franka_joint_client->on_joint_data.AddDynamic(this, &A_integration_game_state::handle_joints);
 
+
+	// onlyfor testing purposes
+	refresh_scenario();
+
 	on_post_actors.Broadcast();
 }
 
@@ -183,6 +187,8 @@ void A_integration_game_state::change_channel(FString target, int32 retries)
 		sync_and_subscribe();
 	}
 	
+	refresh_scenario();
+
 	on_channel_change.Broadcast(channel_);
 }
 
@@ -243,13 +249,16 @@ void A_integration_game_state::delete_object(const FString& id)
 
 void A_integration_game_state::set_assignment_mode(assignment_type assignment)
 {
-	if (current_assignment_ == assignment)
+	const assignment_type permitted = sanitize_assignment(assignment);
+	if (permitted != assignment)
 	{
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Assignment %d blocked by scenario %d, using %d instead."), static_cast<int32>(assignment), static_cast<int32>(scenario_mode_), static_cast<int32>(permitted));
 	}
 
-	current_assignment_ = assignment;
-	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Assignment mode switched to %d"), static_cast<int32>(assignment));
+	if (current_assignment_ == permitted) return;
+
+	current_assignment_ = permitted;
+	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Assignment mode switched to %d"), static_cast<int32>(permitted));
 }
 
 assignment_type A_integration_game_state::get_assignment_mode() const
@@ -359,6 +368,77 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 	franka_tcp_client->async_transmit_data();
 	//franka_joint_client->async_transmit_data();
 	franka_joint_sync_client->async_transmit_data();
+}
+
+void A_integration_game_state::refresh_scenario()
+{
+	// only for testing purposes
+	if (true)
+	{
+		scenario_mode_ = scenario_override;
+		current_assignment_ = sanitize_assignment(current_assignment_);
+		UE_LOG(LogTemp, Log, TEXT("Scenario overridden to %d; assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+		return;
+	}
+
+	if (!selection_client)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client null; cannot refresh scenario."));
+		return;
+	}
+
+	scenario_type new_mode = scenario_type::MIXED;
+	if (!selection_client->request_scenario(new_mode))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
+		return;
+	}
+
+	if (scenario_mode_ == new_mode) return;
+
+	scenario_mode_ = new_mode;
+	current_assignment_ = sanitize_assignment(current_assignment_);
+
+	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+}
+
+scenario_type A_integration_game_state::get_scenario_mode() const
+{
+	return scenario_mode_;
+}
+
+bool A_integration_game_state::is_assignment_allowed(assignment_type assignment) const
+{
+	// only for testing purposes
+	switch (scenario_override)
+	{
+	case scenario_type::DELEGATE_ONLY:
+		return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
+
+	case scenario_type::RESERVE_ONLY:
+		return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
+
+		// by default allow all assignments
+	case scenario_type::MIXED:
+
+	default:
+		return true;
+	}
+
+	//switch (scenario_mode_)
+	//{
+	//case scenario_type::DELEGATE_ONLY:
+	//	return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
+
+	//case scenario_type::RESERVE_ONLY:
+	//	return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
+	//
+	//// by default allow all assignments
+	//case scenario_type::MIXED:
+
+	//default:
+	//	return true;
+	//}
 }
 
 void A_integration_game_state::update_meshes(const TSet<FString>& pending_proto)
@@ -566,6 +646,16 @@ F_procedural_mesh_data A_integration_game_state::create_proc_mesh_data
 		mesh.normals,
 		FLinearColor(proto.mean_color)
 	};
+}
+
+assignment_type A_integration_game_state::sanitize_assignment(assignment_type requested) const
+{
+	if (is_assignment_allowed(requested)) return requested;
+	if (is_assignment_allowed(current_assignment_)) return current_assignment_;
+	if (is_assignment_allowed(assignment_type::UNASSIGNED)) return assignment_type::UNASSIGNED;
+	if (is_assignment_allowed(assignment_type::HUMAN)) return assignment_type::HUMAN;
+	if (is_assignment_allowed(assignment_type::ROBOT)) return assignment_type::ROBOT;
+	return assignment_type::UNASSIGNED;
 }
 
 A_procedural_mesh_actor* A_integration_game_state::spawn_mesh_actor(const FString& id)
