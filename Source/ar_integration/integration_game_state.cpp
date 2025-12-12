@@ -40,7 +40,7 @@ void A_integration_game_state::BeginPlay()
 
 	//correction_component->RegisterComponent();
 	correction_component_->AttachToComponent(pin_component_, FAttachmentTransformRules::KeepRelativeTransform);
-	correction_component_->SetRelativeTransform(FTransform(FQuat{ FRotator{0., 2., 0.} }, FVector(-0.9, 2.8, 0.), FVector::One()));
+	correction_component_->SetRelativeTransform(FTransform(FQuat{ FRotator{0., 4., 0.} }, FVector(1.1, 2.3, 0.), FVector::One()));
 	/*pin_component->AttachToComponent(GetRootComponent(),
 		FAttachmentTransformRules::KeepWorldTransform);*/
 
@@ -415,33 +415,34 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 //	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
 //}
 
-void A_integration_game_state::refresh_scenario()
+bool A_integration_game_state::refresh_scenario()
 {
+	if (scenario_ready_) return true;
+
 	scenario_ready_ = false;
 
 	if (!selection_client)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client null; cannot refresh scenario."));
-		return;
+		return false;
 	}
 
 	scenario_type new_mode = scenario_type::MIXED;
 	if (!selection_client->request_scenario(new_mode))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"),
-			static_cast<int32>(scenario_mode_));
-		return;
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
+		return false;
 	}
 
 	if (scenario_mode_ != new_mode)
 	{
 		scenario_mode_ = new_mode;
 		current_assignment_ = sanitize_assignment(current_assignment_);
-		UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"),
-			static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+		UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
 	}
 
 	scenario_ready_ = true;
+	return true;
 }
 
 scenario_type A_integration_game_state::get_scenario_mode() const

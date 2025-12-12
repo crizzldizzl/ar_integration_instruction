@@ -18,6 +18,7 @@ A_assignment_menu_actor::A_assignment_menu_actor()
     back_plate->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     back_plate->SetMobility(EComponentMobility::Movable);
     back_plate->bEditableWhenInherited = true;
+    back_plate->SetVisibility(false);
 
     // set scale
     back_plate->SetRelativeScale3D(FVector(0.8f));
@@ -25,19 +26,24 @@ A_assignment_menu_actor::A_assignment_menu_actor()
     // configure follow component
     follow_ = CreateDefaultSubobject<UUxtFollowComponent>(TEXT("follow"));
     follow_->OrientationType = EUxtFollowOrientBehavior::FaceCamera;
-
-    // distane from user
+    
+    // tighten distance clamp to keep it close
+    follow_->bIgnoreDistanceClamp = false;
     follow_->DefaultDistance = 45.f;
     follow_->MinimumDistance = 40.f;
-    follow_->MaximumDistance = 55.f;
-
-    // position to user
-    follow_->bUseFixedVerticalOffset = true;
-    follow_->FixedVerticalOffset = -10.f; //down
-
-    // ensure inside viewcone
-    follow_->MaxViewHorizontalDegrees = 35.f;
-    follow_->MaxViewVerticalDegrees = 25.f;
+    follow_->MaximumDistance = 50.f;
+    follow_->VerticalMaxDistance = 0.f;
+    follow_->bUseFixedVerticalOffset = false;
+    
+    // tighten angle clamp so it stays near the center of view
+    follow_->bIgnoreAngleClamp = false;
+    follow_->MaxViewHorizontalDegrees = 5.f;
+    follow_->MaxViewVerticalDegrees = 5.f;
+    follow_->bIgnoreCameraPitchAndRoll = false;
+    
+    //recenter
+    follow_->bInterpolatePose = true;
+    follow_->LerpTime = 0.05f;
 
     static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> robot_button_bp(TEXT("Blueprint'/Game/robot_button_bp.robot_button_bp_C'"));
     if (robot_button_bp.Succeeded())
@@ -83,68 +89,14 @@ void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
         if (follow_) follow_->ActorToFollow = pc->PlayerCameraManager;
     }
     if (follow_) follow_->Recenter();
+
+    // build buttons when game state ready and after connect/scenario refresh
+    build_buttons();
 }
 
 void A_assignment_menu_actor::BeginPlay()
 {
     Super::BeginPlay();
-
-	// spawn buttons by allowed assignments
-    spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, 6.f));
-
-	// check which assignments are allowed in current scenario
-    bool allow_robot = false;
-    bool allow_human = false;
-    if (cached_game_state_.IsValid())
-    {
-        if (cached_game_state_->is_assignment_allowed(assignment_type::ROBOT))
-        {
-            allow_robot = true;
-        }
-        if (cached_game_state_->is_assignment_allowed(assignment_type::HUMAN))
-        {
-            allow_human = true;
-        }
-    }
-
-    if (allow_robot && !allow_human)
-    {
-        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
-    }
-    else if (!allow_robot && allow_human)
-    {
-        spawn_button(human_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
-    }
-    else
-    {
-        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
-        spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, -6.f));
-    }
-
-	// bind button events
-    if (robot_button_instance)
-    {
-        if (UUxtPressableButtonComponent* Button = robot_button_instance->GetButtonComponent())
-        {
-            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_robot_pressed);
-        }
-    }
-
-    if (human_button_instance)
-    {
-        if (UUxtPressableButtonComponent* Button = human_button_instance->GetButtonComponent())
-        {
-            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_human_pressed);
-        }
-    }
-
-    if (unassign_button_instance)
-    {
-        if (UUxtPressableButtonComponent* Button = unassign_button_instance->GetButtonComponent())
-        {
-            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_unassign_pressed);
-        }
-    }
 }
 
 void A_assignment_menu_actor::Tick(float DeltaSeconds)
@@ -222,6 +174,89 @@ void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
     close_menu();
 }
 
+void A_assignment_menu_actor::build_buttons()
+{
+    // clean up any existing buttons
+    auto destroy_button = 
+    [](AUxtPressableButtonActor*& button)
+    {
+        if (button)
+        {
+            button->Destroy();
+            button = nullptr;
+        }
+    };
+    destroy_button(robot_button_instance);
+    destroy_button(human_button_instance);
+    destroy_button(unassign_button_instance);
+
+    // spawn buttons by allowed assignments
+    spawn_button(unassign_button_class, unassign_button_instance, FVector(0.f, 0.f, 6.f));
+
+    // ensure game state is available
+    if (!cached_game_state_.IsValid())
+    {
+        if (A_integration_game_state* gs = GetWorld()->GetGameState<A_integration_game_state>())
+        {
+            cached_game_state_ = gs;
+        }
+    }
+
+    bool allow_robot = false;
+    bool allow_human = false;
+    if (cached_game_state_.IsValid())
+    {
+        // pull latest scenario before evaluating buttons
+        cached_game_state_->refresh_scenario();
+
+        allow_robot = cached_game_state_->is_assignment_allowed(assignment_type::ROBOT);
+        allow_human = cached_game_state_->is_assignment_allowed(assignment_type::HUMAN);
+    }
+
+    if (allow_robot && !allow_human)
+    {
+        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
+    }
+    else if (!allow_robot && allow_human)
+    {
+        spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, 0.f));
+    }
+    else if (allow_robot && allow_human)
+    {
+        spawn_button(robot_button_class, robot_button_instance, FVector(0.f, 0.f, 0.f));
+        spawn_button(human_button_class, human_button_instance, FVector(0.f, 0.f, -6.f));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Scenario unavailable; showing only 'UNASSIGN'"));
+    }
+
+    // bind button events
+    if (robot_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = robot_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_robot_pressed);
+        }
+    }
+
+    if (human_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = human_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_human_pressed);
+        }
+    }
+
+    if (unassign_button_instance)
+    {
+        if (UUxtPressableButtonComponent* Button = unassign_button_instance->GetButtonComponent())
+        {
+            Button->OnButtonPressed.AddDynamic(this, &A_assignment_menu_actor::on_unassign_pressed);
+        }
+    }
+}
+
 void A_assignment_menu_actor::spawn_button
 (
     TSubclassOf<AUxtPressableButtonActor> button_class,
@@ -242,7 +277,7 @@ void A_assignment_menu_actor::spawn_button
 
     out_instance = GetWorld()->SpawnActor<AUxtPressableButtonActor>(button_class, params);
     if (!out_instance) return;
-    out_instance->SetActorScale3D(FVector(0.8f));
+    out_instance->SetActorScale3D(FVector(1.5f));
     out_instance->AttachToComponent(back_plate, FAttachmentTransformRules::KeepRelativeTransform);
     out_instance->SetActorRelativeLocation(relative_location);
 }

@@ -141,11 +141,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void sync_and_subscribe(bool forced = false);
 	
-	/**
-	 * refreshes scenario mode from selection client
-	 */
+	/*
+     * refreshes scenario mode from selection client
+     * @return true if a valid scenario was applied
+     */
 	UFUNCTION(BlueprintCallable)
-	void refresh_scenario();
+	bool refresh_scenario();
 
 	/**
 	 * gets current scenario mode from selection client

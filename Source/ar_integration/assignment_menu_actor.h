@@ -96,6 +96,11 @@ protected:
 
 private:
 
+	/**
+	 * Builds the scenario specific buttons
+	 */
+	void build_buttons();
+
 	/*
 	 * Spawns a button of the given class at the given relative location
 	 */

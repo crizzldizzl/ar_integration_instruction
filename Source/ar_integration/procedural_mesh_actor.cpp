@@ -243,23 +243,24 @@ void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_ta
 	params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	params.Owner = this;
 
-	// check if scenario is even ready
+	// try to refresh scenario before showing the menu
 	if (A_integration_game_state* game_state = GetWorld()->GetGameState<A_integration_game_state>())
 	{
-		if (!game_state->is_scenario_ready())
+		if (!game_state->is_scenario_ready() && !game_state->refresh_scenario())
 		{
-			game_state->refresh_scenario();
-			return;
+			UE_LOG(LogTemp, Warning, TEXT("[procedural_mesh_actor] Scenario refresh failed; showing menu with current scenario % d"), static_cast<int32>(game_state->get_scenario_mode()));
 		}
 	}
-
+	
 	active_menu_ = GetWorld()->SpawnActor<A_assignment_menu_actor>(assignment_menu_class_, spawn_location, spawn_rotation, params);
+
 	if (active_menu_)
 	{
 		active_menu_->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 		active_menu_->initialise(this);
 		active_menu_->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	}
+
 }
 
 void A_procedural_mesh_actor::handle_end_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data)
