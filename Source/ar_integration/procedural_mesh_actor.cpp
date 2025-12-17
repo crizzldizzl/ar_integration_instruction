@@ -248,7 +248,13 @@ void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_ta
 	{
 		if (!game_state->is_scenario_ready() && !game_state->refresh_scenario())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[procedural_mesh_actor] Scenario refresh failed; showing menu with current scenario % d"), static_cast<int32>(game_state->get_scenario_mode()));
+			UE_LOG(LogTemp, Warning, TEXT("[procedural_mesh_actor] Scenario refresh failed; showing menu with current scenario %d"), static_cast<int32>(game_state->get_scenario_mode()));
+		}
+
+		if (game_state->get_scenario_mode() == scenario_type::BASELINE)
+		{
+			// Baseline --> no selection menu at all
+			return;
 		}
 	}
 	

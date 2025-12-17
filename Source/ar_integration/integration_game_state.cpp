@@ -475,8 +475,11 @@ bool A_integration_game_state::is_assignment_allowed(assignment_type assignment)
 
 	case scenario_type::RESERVE_ONLY:
 		return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
-	
-	// by default allow all assignments
+
+	case scenario_type::BASELINE:
+		return assignment == assignment_type::UNASSIGNED;
+
+		// by default allow all assignments
 	case scenario_type::MIXED:
 
 	default:

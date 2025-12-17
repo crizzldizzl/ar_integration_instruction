@@ -33,6 +33,7 @@ enum class scenario_type : uint8
 	DELEGATE_ONLY = 0 UMETA(DisplayName = "Delegate only"),
 	RESERVE_ONLY = 1 UMETA(DisplayName = "Reserve only"),
 	MIXED = 2 UMETA(DisplayName = "Mixed"),
+	BASELINE = 3 UMETA(DisplayName = "None (Baseline)"),
 };
 
 /**

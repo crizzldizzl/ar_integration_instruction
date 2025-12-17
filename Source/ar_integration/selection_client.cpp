@@ -56,16 +56,20 @@ bool U_selection_client::request_scenario(scenario_type& scenario)
 
     switch (resp.scenario())
     {
-    case 0: 
-        scenario = scenario_type::DELEGATE_ONLY; 
+    case 0:
+        scenario = scenario_type::DELEGATE_ONLY;
         break;
 
-    case 1: 
-        scenario = scenario_type::RESERVE_ONLY;  
+    case 1:
+        scenario = scenario_type::RESERVE_ONLY;
         break;
 
-    case 2: 
+    case 2:
         scenario = scenario_type::MIXED;
+        break;
+
+    case 3:
+        scenario = scenario_type::BASELINE;
         break;
 
     default:
