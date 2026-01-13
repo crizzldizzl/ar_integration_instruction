@@ -85,6 +85,12 @@ protected:
 	void on_unassign_pressed(UUxtPressableButtonComponent* button, UUxtPointerComponent* pointer);
 
 	/**
+	 * Called when the parent mesh actor is destroyed
+	 */
+	UFUNCTION()
+	void handle_parent_destroyed(AActor* destroyed_actor);
+
+	/**
 	 * Handles assignment logic
 	 */
 	void handle_assignment(assignment_type assignment);

@@ -76,6 +76,23 @@ void A_procedural_mesh_actor::BeginPlay()
 
 }
 
+// Called when the game ends or actor is destroyed
+void A_procedural_mesh_actor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (grab_target_)
+	{
+		grab_target_->ForceEndGrab();
+	}
+
+	if (active_menu_)
+	{
+		active_menu_->close_menu();
+		active_menu_ = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
 // Called every frame
 void A_procedural_mesh_actor::Tick(float DeltaTime)
 {

@@ -126,6 +126,11 @@ protected:
 	virtual void BeginPlay() override;
 
 	/*
+	 * Called when the game ends or actor is destroyed
+	 */
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/*
 	 * Called when properties are changed in editor or actor is spawned
 	 */
 	virtual void OnConstruction(const FTransform& Transform) override;

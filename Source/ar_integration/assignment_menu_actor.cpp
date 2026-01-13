@@ -83,6 +83,11 @@ void A_assignment_menu_actor::initialise(A_procedural_mesh_actor* in_parent)
 {
     parent_block_ = in_parent;
 
+    if (parent_block_.IsValid())
+    {
+        parent_block_->OnDestroyed.AddDynamic(this, &A_assignment_menu_actor::handle_parent_destroyed);
+    }
+
     if (APlayerController* pc = UGameplayStatics::GetPlayerController(this, 0))
     {
         cached_game_state_ = pc->GetWorld()->GetGameState<A_integration_game_state>();
@@ -144,6 +149,11 @@ void A_assignment_menu_actor::on_human_pressed(UUxtPressableButtonComponent* but
 void A_assignment_menu_actor::on_unassign_pressed(UUxtPressableButtonComponent* button, UUxtPointerComponent* pointer)
 {
     handle_assignment(assignment_type::UNASSIGNED);
+}
+
+void A_assignment_menu_actor::handle_parent_destroyed(AActor* destroyed_actor)
+{
+    close_menu();
 }
 
 void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
