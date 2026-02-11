@@ -41,7 +41,15 @@
     5. Platforms -> Hololens -> Click "Package Project". Select the project root or create some folder as destination folder in the ar_integration repository.
 10. Enter the IP address of the HoloLens in Edge browser to get the web interface: Views -> Apps -> Click "Allow me to select framework packages" and "Choose File" -> Select the files from step 10.4 (in the first step "ar_integration.appxbundle" and in the second step "Microsoft.VCLibs.arm64.14.00.appx")
 11. Start the main application on the host
-12. Start ArSurvey on the HoloLens. 
+12. Start ArSurvey on the HoloLens.
+
+# User Selection Flow (Assignments)
+
+  1. `A_procedural_mesh_actor::handle_begin_grab` opens `A_assignment_menu_actor` only when the mesh is selectable and scenario is not `BASELINE`.
+  2. `A_assignment_menu_actor::build_buttons` refreshes scenario and shows only allowed buttons.
+  3. On button press, `A_assignment_menu_actor::handle_assignment` sets assignment mode, sends selection via game state, and updates local label/state.
+  4. `A_integration_game_state::select_mesh_by_actor` resolves `object_id` and `pn_id` and calls `U_selection_client::send_selection`.
+  5. `U_selection_client::send_selection` transmits `{object_id, pn_id, assignment}` through gRPC service `selection_com/send_selection`.
 
 # Development (Advanced)
 - If you want to see something in the editor you will want to click the following menu `Create -> Only Create Lighting`
@@ -50,3 +58,17 @@
     2. Package for HoloLens in Editor
     3. Upload the new package via device portal
     4. Compile or Hot-Reload the changes for development editor x64, to keep the environments behaviour in sync (optional)
+
+# Troubleshooting
+- To spare future developers hours and hours of pain and suffering, here comes one the most important pieces of information:
+
+## HOW TO DEBUG A HOLOLENS APP WHILE IT IS RUNNING ON THE DEVICE
+
+0. INSTALL THE WIN-UI DEVELOPMENT WORKLOAD IN VISUAL STUDIO
+1. In Visual Studio, open Debug -> Other Debug Targets -> Debug Installed App Package.
+2. The connection type must be "Remote machine"
+3. Enter the IP address of the HoloLens device in the Adress field and let the auth method on "Universal (Unencrypted Protocol)".
+4. After some time (i may take some), you can pair with the device by entering the PIN shown on the HoloLens (Settings --> Update and Security --> For Developers --> Pair device).
+5. Select your app from the list and make sure "Enable native code debugging" is checked.
+6. Click "Start" to start debugging. (the App will then Start on the HoloLens and Debug info will be transmitted to your Visual Studio) --> Make sure to use a build that enables debug information
+7. Read the output window for information about crashes, logs, etc. 

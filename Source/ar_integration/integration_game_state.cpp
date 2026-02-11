@@ -115,7 +115,7 @@ void A_integration_game_state::Tick(float DeltaSeconds)
 	franka_controller_->Tick(DeltaSeconds);
 }
 
-void A_integration_game_state::change_channel(FString target, int32 retries)
+void A_integration_game_state::change_channel(const FString& target, int32 retries)
 {
 	if (target == old_target) return;
 	
@@ -240,6 +240,71 @@ void A_integration_game_state::delete_object(const FString& id)
 	delete_list.Add(id);
 }
 
+void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* actor)
+{
+	if (!actor) return;
+
+	FString selected_id;
+	int32 selected_pn_id = -1;
+	assignment_type assignment_snapshot = assignment_type::UNASSIGNED;
+
+	{
+		std::unique_lock lock(actor_mutex_);
+
+		// find id by actor
+		for (const auto& kv : actors)
+		{
+			if (kv.Value == actor)
+			{
+				selected_id = kv.Key;
+				break;
+			}
+		}
+
+		if (selected_id.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No ID found for selected actor!"));
+			return;
+		}
+
+		// find pn_id by id
+		if (const F_object_instance_data* instance = object_instances_.Find(selected_id))
+		{
+			selected_pn_id = instance->pn_id;
+		}
+		else if (const F_object_instance_colored_box* box_instance = box_instances_.Find(selected_id))
+		{
+			selected_pn_id = box_instance->pn_id;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[integration_game_state] Object instance not found."));
+			return;
+		}
+
+		assignment_snapshot = current_assignment_;
+
+	}
+
+	const int32 assignment_raw = static_cast<int32>(assignment_snapshot);
+	UE_LOG(LogTemp, Log, TEXT("[integration_game_state] Sending selection with assignment %d"), assignment_raw);
+
+	// Send selection to server
+	if (selection_client)
+	{
+		bool success = selection_client->send_selection(selected_id, selected_pn_id, assignment_snapshot);
+		if (!success)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Failed to send selection to server!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client is null!"));
+	}
+
+}
+
 void A_integration_game_state::update_anchor_transform(
 	const FTransform& anchor_transform)
 {
@@ -287,6 +352,83 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 	franka_joint_sync_client->async_transmit_data();
 }
 
+bool A_integration_game_state::refresh_scenario()
+{
+	if (scenario_ready_) return true;
+
+	scenario_ready_ = false;
+
+	if (!selection_client)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client null; cannot refresh scenario."));
+		return false;
+	}
+
+	scenario_type new_mode = scenario_type::MIXED;
+	if (!selection_client->request_scenario(new_mode))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
+		return false;
+	}
+
+	if (scenario_mode_ != new_mode)
+	{
+		scenario_mode_ = new_mode;
+		current_assignment_ = sanitize_assignment(current_assignment_);
+		UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
+	}
+
+	scenario_ready_ = true;
+	return true;
+}
+
+scenario_type A_integration_game_state::get_scenario_mode() const
+{
+	return scenario_mode_;
+}
+
+bool A_integration_game_state::is_assignment_allowed(assignment_type assignment) const
+{
+	// only for testing purposes
+	//switch (scenario_override)
+	//{
+	//case scenario_type::DELEGATE_ONLY:
+	//	return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
+
+	//case scenario_type::RESERVE_ONLY:
+	//	return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
+
+	//	// by default allow all assignments
+	//case scenario_type::MIXED:
+
+	//default:
+	//	return true;
+	//}
+
+	switch (scenario_mode_)
+	{
+	case scenario_type::DELEGATE_ONLY:
+		return assignment == assignment_type::ROBOT || assignment == assignment_type::UNASSIGNED;
+
+	case scenario_type::RESERVE_ONLY:
+		return assignment == assignment_type::HUMAN || assignment == assignment_type::UNASSIGNED;
+
+	case scenario_type::BASELINE:
+		return assignment == assignment_type::UNASSIGNED;
+
+		// by default allow all assignments
+	case scenario_type::MIXED:
+
+	default:
+		return true;
+	}
+}
+
+bool A_integration_game_state::is_scenario_ready() const
+{
+	return scenario_ready_;
+}
+
 void A_integration_game_state::update_meshes(const TSet<FString>& pending_proto)
 {
 	/**
@@ -319,24 +461,36 @@ void A_integration_game_state::update_meshes(const TSet<FString>& pending_proto)
 
 void A_integration_game_state::update_actors(const TArray<FString>& to_delete)
 {
+	TArray<FString> invalid_actor_ids;
+	invalid_actor_ids.Reserve(actors.Num());
+
 	/**
 	 * actors might habe been destroyed globaly outside this scope
 	 */
 	for (const auto& actor : actors)
 	{
 		if (!IsValid(actor.Value))
-			actors.Remove(actor.Key);
+		{
+			invalid_actor_ids.Add(actor.Key);
+		}
+	}
+
+	for (const FString& invalid_id : invalid_actor_ids)
+	{
+		actors.Remove(invalid_id);
 	}
 
 	/**
 	 * remove any actors from the scene and @ref{actors}
 	 * which have been deleted
 	 */
-	A_procedural_mesh_actor* temp_del;
+	A_procedural_mesh_actor* temp_del = nullptr;
 	for (const auto& del : to_delete)
 	{
-		if (actors.RemoveAndCopyValue(del, temp_del))
+		if (actors.RemoveAndCopyValue(del, temp_del) && IsValid(temp_del))
+		{
 			temp_del->Destroy();
+		}
 	}
 }
 

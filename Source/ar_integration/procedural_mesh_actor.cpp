@@ -124,5 +124,257 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 		0, vertices, triangles, normals,
 		{}, vertex_colors, {}, false);
 	
-	mesh->SetMaterial(0, wireframe_material);
+	mesh->SetMaterial(0, wireframe_material_);
+
+	update_assignment_labels();
+}
+
+void A_procedural_mesh_actor::handle_begin_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data)
+{
+	if (!selectable_)
+	{
+		return;
+	}
+
+	if (active_menu_ || !assignment_menu_class_) return;
+
+	// determine which hand is grabbing
+	EControllerHand grabbing_hand = EControllerHand::AnyHand;
+	if (pointer_data.NearPointer)
+		grabbing_hand = pointer_data.NearPointer->Hand;
+	else if (pointer_data.FarPointer)
+		grabbing_hand = pointer_data.FarPointer->Hand;
+
+	EControllerHand free_hand = EControllerHand::AnyHand;
+	if (grabbing_hand == EControllerHand::Left)
+		free_hand = EControllerHand::Right;
+	else if (grabbing_hand == EControllerHand::Right)
+		free_hand = EControllerHand::Left;
+
+	FQuat palm_rot;
+	FVector palm_pos;
+	float  palm_radius = 0.f;
+
+	// try to get palm position of free hand
+	bool has_free_hand = false;
+	if (free_hand == EControllerHand::Left || free_hand == EControllerHand::Right)
+	{
+		has_free_hand = IUxtHandTracker::Get().GetJointState(free_hand, EHandKeypoint::Palm, palm_rot, palm_pos, palm_radius);
+	}
+
+	FVector spawn_location;
+	FRotator spawn_rotation;
+
+	if (has_free_hand)
+	{
+		const FVector camera_location = UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation();
+		const FVector to_camera = (camera_location - palm_pos).GetSafeNormal();
+
+		// offset toward the camera so the menu isnt inside the hand
+		spawn_location = palm_pos + to_camera * 12.f; // --> cm
+		spawn_rotation = to_camera.Rotation();
+	}
+	else
+	{
+		// old fallback behaviour if the other hand isnt tracked
+		spawn_location = GetActorLocation() + GetActorUpVector() * 0.22f + GetActorForwardVector() * 0.15f;
+		spawn_rotation = (UGameplayStatics::GetPlayerCameraManager(this, 0)->GetCameraLocation() - spawn_location).Rotation();
+	}
+
+	FActorSpawnParameters params;
+	params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	params.Owner = this;
+
+	// try to refresh scenario before showing the menu
+	if (A_integration_game_state* game_state = GetWorld()->GetGameState<A_integration_game_state>())
+	{
+		if (!game_state->is_scenario_ready() && !game_state->refresh_scenario())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[procedural_mesh_actor] Scenario refresh failed; showing menu with current scenario %d"), static_cast<int32>(game_state->get_scenario_mode()));
+		}
+
+		if (game_state->get_scenario_mode() == scenario_type::BASELINE)
+		{
+			// Baseline --> no selection menu at all
+			return;
+		}
+	}
+	
+	active_menu_ = GetWorld()->SpawnActor<A_assignment_menu_actor>(assignment_menu_class_, spawn_location, spawn_rotation, params);
+
+	if (active_menu_)
+	{
+		active_menu_->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+		active_menu_->initialise(this);
+		active_menu_->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+
+}
+
+void A_procedural_mesh_actor::handle_end_grab(UUxtGrabTargetComponent* grab_target, FUxtGrabPointerData pointer_data)
+{
+	if (active_menu_)
+	{
+		active_menu_->close_menu();
+		active_menu_ = nullptr;
+	}
+}
+
+void A_procedural_mesh_actor::on_assignment_menu_closed()
+{
+	active_menu_ = nullptr;
+}
+
+void A_procedural_mesh_actor::set_assignment_state(assignment_type assignment)
+{
+	if (current_assignment_ == assignment) return;
+
+	current_assignment_ = assignment;
+
+	const bool show_label = (assignment != assignment_type::UNASSIGNED);
+
+	FText label_text;
+	if (assignment == assignment_type::ROBOT)
+	{
+		label_text = FText::FromString(TEXT("R"));
+	}
+	else if (assignment == assignment_type::HUMAN)
+	{
+		label_text = FText::FromString(TEXT("H"));
+	}
+	else
+	{
+		label_text = FText::GetEmpty();
+	}
+		
+
+	FColor label_color;
+	if (assignment == assignment_type::ROBOT)
+	{
+		label_color = FColor(255, 140, 0);
+	}
+	else if (assignment == assignment_type::HUMAN)
+	{
+		label_color = FColor(0, 128, 255);
+	}
+	else
+	{
+		label_color = FColor::Transparent;
+	}
+
+	for (UTextRenderComponent* text : assignment_labels_)
+	{
+		if (!text) continue;
+		text->SetText(label_text);
+		text->SetTextRenderColor(label_color);
+		text->SetHiddenInGame(!show_label);
+	}
+
+	mesh->SetCustomDepthStencilValue(assignment_to_stencil(assignment));
+	mesh->MarkRenderStateDirty();
+
+}
+
+uint8 A_procedural_mesh_actor::assignment_to_stencil(assignment_type assignment) const
+{
+	switch (assignment)
+	{
+	case assignment_type::HUMAN:
+		return 1;
+
+	case assignment_type::ROBOT:
+		return 2;
+
+	default:
+		return 0;
+	}
+}
+
+void A_procedural_mesh_actor::update_assignment_labels()
+{
+	if (!mesh || assignment_labels_.Num() == 0) return;
+
+	const FBoxSphereBounds bounds = mesh->Bounds;
+	const FVector extent = bounds.BoxExtent;
+
+	// letters slightly off the surface
+	const float offset = 0.5f;     
+
+	// scale to the block size
+	const float labelSize = FMath::Max(extent.X, extent.Y) * 1.4f;
+
+	struct loc_rot
+	{
+		FVector  location;
+		FRotator rotation;
+	};
+
+	loc_rot poses[4] = 
+	{
+		// +X
+		{ FVector(extent.X + offset, 0.f, 0.f), FRotator(0.f,   0.f, 0.f) },
+		// -X
+		{ FVector(-extent.X - offset, 0.f, 0.f), FRotator(0.f, 180.f, 0.f) },
+		// +Y
+		{ FVector(0.f,  extent.Y + offset, 0.f), FRotator(0.f,  90.f, 0.f) },
+		// -Y
+		{ FVector(0.f, -extent.Y - offset, 0.f), FRotator(0.f, -90.f, 0.f) }   
+	};
+
+	for (int32 i = 0; i < assignment_labels_.Num() && i < UE_ARRAY_COUNT(poses); ++i)
+	{
+		UTextRenderComponent* label = assignment_labels_[i];
+		label->SetRelativeLocation(poses[i].location);
+		label->SetRelativeRotation(poses[i].rotation);
+		label->SetHorizontalAlignment(EHTA_Center);
+		label->SetVerticalAlignment(EVRTA_TextCenter);
+		label->SetWorldSize(labelSize);
+	}
+}
+
+void A_procedural_mesh_actor::set_selectable(bool enable)
+{
+	selectable_ = enable;
+
+	if (!grab_target_)
+	{
+		return;
+	}
+
+	// mesh is selectable
+	if (enable)
+	{
+		// enable collision for mesh
+		if (mesh)
+		{
+			mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			mesh->SetCollisionResponseToAllChannels(ECR_Block);
+		}
+
+		// enable grab target for near and far interaction with one hand
+		grab_target_->InteractionMode = static_cast<int32>(EUxtInteractionMode::Near | EUxtInteractionMode::Far);
+		grab_target_->GrabModes = static_cast<int32>(EUxtGrabMode::OneHanded);
+		grab_target_->Activate();
+	}
+
+	// mesh is not selectable
+	else
+	{
+		// disable collision for mesh
+		if (mesh)
+		{
+			mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		// disable grab target
+		grab_target_->ForceEndGrab();
+		grab_target_->InteractionMode = 0;
+		grab_target_->GrabModes = 0;
+		grab_target_->Deactivate();
+	}
+}
+
+bool A_procedural_mesh_actor::is_selectable() const
+{
+	return selectable_;
 }

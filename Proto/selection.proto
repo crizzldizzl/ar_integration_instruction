@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package generated;
+
+option optimize_for = LITE_RUNTIME;
+option cc_enable_arenas = true;
+
+//
+// Assignment type enumeration.
+//
+// Defines which agent is responsible for completing a target.
+//
+enum assignment_type 
+{
+    UNASSIGNED = 0;  // Target not yet assigned to any agent
+    HUMAN = 1;       // Target assigned to human
+    ROBOT = 2;       // Target assigned to robot
+}
+
+//
+// Selection message sent from HoloLens client to server
+//
+// This message is used when a user selects a target in the HoloLens Ar view
+// and assigns it to either themselves or the robot
+//
+message selection_message 
+{
+  string object_id = 1;
+  int32 pn_id = 2;
+  assignment_type assignment = 3;
+}
+
+//
+//
+// Scenario request sent from server to HoloLens client to know which functionalities to toggle
+//
+//
+message scenario_request 
+{
+    // 0 = DELEGATE_ONLY, 1 = RESERVE_ONLY, 2 = MIXED, 3 = BASELINE
+    int32 scenario = 1; 
+}
+
+//
+// Selection communication service.
+//
+// Provides gRPC interface for HoloLens client to communicate
+// selection events to the server.
+// Provides gRPC interface for the server to communicate
+// scenarios to the HoloLens client.
+//
+service selection_com 
+{
+    //
+    // HoloLens sends a selection event to the server.
+    //
+    // The server will update the selection_manager with the new assignment
+    // and notify all subscribers (visualizer, planner, etc.) via signals.
+    //
+    rpc send_selection(selection_message) returns (google.protobuf.Empty);
+
+    //
+    // Server sends a scenario to the HoloLens client.
+    //
+    // The HoloLens client will enable/disable selection functionalities
+    // based on the sent scenario.
+    //
+    rpc get_scenario(google.protobuf.Empty) returns (scenario_request);
+}
