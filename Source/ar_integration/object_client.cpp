@@ -87,6 +87,8 @@ void U_object_client::sync_objects()
 
 void U_object_client::process(const generated::Object_Instance_TF_Meta& meta_instance, TF_Conv_Wrapper& wrapper) const
 {
+	UE_LOG(LogTemp, Warning, TEXT("[object_client] Raw PN-ID from message: %d"), meta_instance.object_instance().pn_id());
+
 	/**
 	 * workaround for template issue with unreal reflection system
 	 */
@@ -95,11 +97,12 @@ void U_object_client::process(const generated::Object_Instance_TF_Meta& meta_ins
 	{
 		const auto data = convert_meta<F_object_instance_data>(meta_instance, wrapper);
 		on_object_instance_data.Broadcast(data);
+		UE_LOG(LogTemp, Warning, TEXT("[object_client] Received object with ID: %s and PN-ID: %d"), *data.id, data.pn_id);
 	}
 	else if (instance.has_box())
 	{
-		const auto data = 
-			convert_meta<F_object_instance_colored_box>(meta_instance, wrapper);
+		const auto data = convert_meta<F_object_instance_colored_box>(meta_instance, wrapper);
 		on_object_instance_colored_box.Broadcast(data);
+		UE_LOG(LogTemp, Warning, TEXT("[object_client] Received box with ID: %s and PN-ID: %d"), *data.id, data.pn_id);
 	}
 }

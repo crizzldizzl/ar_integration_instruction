@@ -341,7 +341,7 @@ public class Grpc : ModuleRules
         File.WriteAllLines(tempFile, linesToKeep);
         File.AppendAllLines(tempFile, new string[] { 
             "set(VCPKG_BUILD_TYPE release)",
-            "set(VCPKG_PLATFORM_TOOLSET_VERSION \"14.38\")"
+			"set(VCPKG_PLATFORM_TOOLSET_VERSION \"14.38\")"
         });
         
         File.Move(tempFile, paths.tripletFile, true);
@@ -415,10 +415,10 @@ public class Grpc : ModuleRules
 
         Console.WriteLine("Added header root: " + TargetPaths.include);
         PublicIncludePaths.Add(TargetPaths.include);
-        //string[] allSubDirectories = Directory.GetDirectories(TargetPaths.include, "*", SearchOption.AllDirectories);
-        //foreach (string subDirectory in allSubDirectories)
-          //  PublicIncludePaths.Add(subDirectory);
-
+		//string[] allSubDirectories = Directory.GetDirectories(TargetPaths.include, "*", SearchOption.AllDirectories);
+		//foreach (string subDirectory in allSubDirectories)
+			//  PublicIncludePaths.Add(subDirectory);
+			
         {
             int i = 0;
             Console.WriteLine("Adding lib files: ");

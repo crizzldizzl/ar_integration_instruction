@@ -3,6 +3,9 @@
 
 #include "procedural_mesh_actor.h"
 
+// only for debug/testing
+#include "integration_game_state.h"
+
 // Sets default values
 A_procedural_mesh_actor::A_procedural_mesh_actor()
 {
@@ -13,27 +16,53 @@ A_procedural_mesh_actor::A_procedural_mesh_actor()
 	 * Generate mesh member and add to actor
 	 */
 	mesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
+	RootComponent = mesh;
+
+	// enable custom depth for assignment visualization and set up collision
+	mesh->SetRenderCustomDepth(true);
+	mesh->SetCustomDepthStencilValue(0);
+	mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	mesh->SetCollisionResponseToAllChannels(ECR_Block);
+	mesh->bUseComplexAsSimpleCollision = true;
+
+	// add grab target component for interaction
+	grab_target_ = CreateDefaultSubobject<UUxtGrabTargetComponent>(TEXT("grab_target"));
+	grab_target_->Deactivate();
 
 	/**
 	 * Load global materials with engine reference
 	 */
-	static ConstructorHelpers::FObjectFinder<UMaterial> material_opaque(
-		TEXT("Material'/Game/proced_mat.proced_mat'"));
+	static ConstructorHelpers::FObjectFinder<UMaterial> material_opaque(TEXT("Material'/Game/proced_mat.proced_mat'"));
 
-	static ConstructorHelpers::FObjectFinder<UMaterial> material_wire(
-		TEXT("Material'/Game/wireframe.wireframe'"));
+	static ConstructorHelpers::FObjectFinder<UMaterial> material_wire(TEXT("Material'/Game/wireframe.wireframe'"));
 	
-	global_opaque = material_opaque.Object;
-	global_wire = material_wire.Object;
+	global_opaque_ = material_opaque.Object;
+	global_wire_ = material_wire.Object;
 
 	/**
 	 * create instances of global materials for mesh
 	 */
-	opaque_material = UMaterialInstanceDynamic::Create(global_opaque, mesh);
-	wireframe_material = UMaterialInstanceDynamic::Create(global_wire, mesh);
+	opaque_material_ = UMaterialInstanceDynamic::Create(global_opaque_, mesh);
+	wireframe_material_ = UMaterialInstanceDynamic::Create(global_wire_, mesh);
 	
-	RootComponent = mesh;
 	mesh->bUseAsyncCooking = true;
+
+	active_menu_ = nullptr;
+
+	// create text render components for assignment labels
+	for (int32 i = 0; i < 4; ++i)
+	{
+		UTextRenderComponent* label = CreateDefaultSubobject<UTextRenderComponent>(*FString::Printf(TEXT("assignment_label_%d"), i));
+
+		label->SetupAttachment(mesh);
+		label->SetHorizontalAlignment(EHTA_Center);
+		label->SetVerticalAlignment(EVRTA_TextCenter);
+		label->SetText(FText::GetEmpty());
+		label->SetTextRenderColor(FColor::Transparent);
+		label->SetHiddenInGame(true);
+
+		assignment_labels_.Add(label);
+	}
 }
 
 // Called when the game starts or when spawned
@@ -41,12 +70,52 @@ void A_procedural_mesh_actor::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	// bind grab events
+	grab_target_->OnBeginGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_begin_grab);
+	grab_target_->OnEndGrab.AddDynamic(this, &A_procedural_mesh_actor::handle_end_grab);
+
+}
+
+// Called when the game ends or actor is destroyed
+void A_procedural_mesh_actor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (grab_target_)
+	{
+		grab_target_->ForceEndGrab();
+	}
+
+	if (active_menu_)
+	{
+		active_menu_->close_menu();
+		active_menu_ = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called every frame
 void A_procedural_mesh_actor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+}
+
+// Called when properties are changed in editor or actor is spawned 
+void A_procedural_mesh_actor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	// only build the placeholder if there isnt already a mesh section
+	if (!mesh->GetNumSections())
+	{
+		wireframe(FLinearColor::Red);
+		mesh->SetHiddenInGame(false);
+		mesh->SetVisibility(true);
+	}
+
+	apply_test_pn_id();
+
+	update_assignment_labels();
 
 }
 
@@ -68,11 +137,15 @@ void A_procedural_mesh_actor::set_from_data(const F_procedural_mesh_data& data)
 	vertex_colors.Init(data.mean_color, data.vertices.Num());
 
 	mesh->ClearAllMeshSections();
-	mesh->CreateMeshSection_LinearColor(
+	mesh->CreateMeshSection_LinearColor
+	(
 		0, data.vertices, data.triangles, data.normals, 
-		{}, vertex_colors, {}, false);
+		{}, vertex_colors, {}, true
+	);
 	
-	mesh->SetMaterial(0, opaque_material);
+	mesh->SetMaterial(0, opaque_material_);
+
+	update_assignment_labels();
 }
 
 void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
@@ -120,9 +193,11 @@ void A_procedural_mesh_actor::wireframe(const FLinearColor& color)
 	vertex_colors.Init(color, vertices.Num());
 
 	mesh->ClearAllMeshSections();
-	mesh->CreateMeshSection_LinearColor(
+	mesh->CreateMeshSection_LinearColor
+	(
 		0, vertices, triangles, normals,
-		{}, vertex_colors, {}, false);
+		{}, vertex_colors, {}, true
+	);
 	
 	mesh->SetMaterial(0, wireframe_material_);
 

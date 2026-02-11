@@ -1,0 +1,84 @@
+#pragma once
+
+#include "EngineMinimal.h"
+#include "UObject/Object.h"
+
+#include "grpc_wrapper.h"
+#include "grpc_channel.h"
+#include "base_client.h"
+
+#include "grpc_include_begin.h"
+#include "selection.grpc.pb.h"
+#include "grpc_include_end.h"
+
+#include "selection_client.generated.h"
+
+/*
+ * enumeration for assignment types
+ */
+UENUM(BlueprintType)
+enum class assignment_type : uint8
+{
+	UNASSIGNED = 0 UMETA(DisplayName = "UNASSIGNED"),
+	HUMAN = 1 UMETA(DisplayName = "HUMAN"),
+	ROBOT = 2 UMETA(DisplayName = "ROBOT")
+};
+
+/*
+ * enumeration for scenario types
+ */
+UENUM(BlueprintType)
+enum class scenario_type : uint8
+{
+	DELEGATE_ONLY = 0 UMETA(DisplayName = "Delegate only"),
+	RESERVE_ONLY = 1 UMETA(DisplayName = "Reserve only"),
+	MIXED = 2 UMETA(DisplayName = "Mixed"),
+	BASELINE = 3 UMETA(DisplayName = "None (Baseline)"),
+};
+
+/**
+ * @class U_selection_client
+ * client for sending selected mesh-object IDs to the server
+ */
+UCLASS()
+class U_selection_client : public UObject, public I_Base_Client_Interface
+{
+	GENERATED_BODY()
+
+public:
+
+	/**
+	 * sends the ids of a selected mesh-object to the server
+	 * @return false if channel not ready or sending failed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Selection")
+	bool send_selection(const FString& mesh_id, int32 pn_id, assignment_type assignment);
+
+	/*
+	 * requests the scenario type from the server
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Selection")
+	bool request_scenario(scenario_type& scenario);
+
+	/**
+	 * stops implementation
+	 */
+	virtual void stop_Implementation() override {}
+
+	/**
+	 * handles connection state changes
+	 */
+	virtual void state_change_Implementation(connection_state old_state, connection_state new_state) override {}
+
+private:
+
+	std::unique_ptr<generated::selection_com::Stub> stub_;
+
+	BASE_CLIENT_BODY
+	(
+		[this](const std::shared_ptr<grpc::Channel>& ch)
+		{
+			stub_ = generated::selection_com::NewStub(ch);
+		}
+	)
+};
