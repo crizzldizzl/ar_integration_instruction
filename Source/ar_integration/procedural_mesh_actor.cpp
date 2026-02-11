@@ -306,7 +306,7 @@ void A_procedural_mesh_actor::set_assignment_state(assignment_type assignment)
 
 	current_assignment_ = assignment;
 
-	const bool show_label = (assignment == assignment_type::HUMAN || assignment == assignment_type::ROBOT);
+	const bool show_label = (assignment != assignment_type::UNASSIGNED);
 
 	FText label_text;
 	if (assignment == assignment_type::ROBOT)
@@ -345,6 +345,7 @@ void A_procedural_mesh_actor::set_assignment_state(assignment_type assignment)
 		text->SetHiddenInGame(!show_label);
 	}
 
+	mesh->SetCustomDepthStencilValue(assignment_to_stencil(assignment));
 	mesh->MarkRenderStateDirty();
 
 }

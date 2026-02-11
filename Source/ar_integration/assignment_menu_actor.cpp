@@ -65,7 +65,6 @@ A_assignment_menu_actor::A_assignment_menu_actor()
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Failed to load human_button_bp."));
-        UE_LOG(LogTemp, Log, TEXT("Loaded unassigned button %s"), *unassign_button_class->GetName());
     }
 
     static ConstructorHelpers::FClassFinder<AUxtPressableButtonActor> unassign_button_bp(TEXT("Blueprint'/Game/unassign_button_bp.unassign_button_bp_C'"));
@@ -168,6 +167,14 @@ void A_assignment_menu_actor::handle_assignment(assignment_type assignment)
     if (!cached_game_state_->is_assignment_allowed(assignment))
     {
         UE_LOG(LogTemp, Warning, TEXT("[assignment_menu_actor] Assignment %d not allowed in current scenario."), static_cast<int32>(assignment));
+
+        // notify parent block that menu is closed.
+        parent_block_->on_assignment_menu_closed();
+
+        // close menu after assignment.
+        close_menu();
+
+        return;
     }
 
 	// update game state and send selection to server.

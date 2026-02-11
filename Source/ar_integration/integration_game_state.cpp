@@ -119,7 +119,7 @@ void A_integration_game_state::Tick(float DeltaSeconds)
 	franka_controller_->Tick(DeltaSeconds);
 }
 
-void A_integration_game_state::change_channel(FString target, int32 retries)
+void A_integration_game_state::change_channel(const FString& target, int32 retries)
 {
 	scenario_ready_ = false;
 
@@ -274,48 +274,55 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 {
 	if (!actor) return;
 
-	std::unique_lock lock(actor_mutex_);
-
-	// Find id by actor
 	FString selected_id;
-	for (const auto& kv : actors)
-	{
-		if (kv.Value == actor)
-		{
-			selected_id = kv.Key;
-			break;
-		}
-	}
-
-	if (selected_id.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No ID found for selected actor!"));
-		return;
-	}
-
-	// Find pn_id by id
 	int32 selected_pn_id = -1;
-	if (object_instances_.Contains(selected_id))
+	assignment_type assignment_snapshot = assignment_type::UNASSIGNED;
+
 	{
-		selected_pn_id = object_instances_[selected_id].pn_id;
-	}
-	else if (box_instances_.Contains(selected_id))
-	{
-		selected_pn_id = box_instances_[selected_id].pn_id;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No PN-ID found for %s"), *selected_id);
-		return;
+		std::unique_lock lock(actor_mutex_);
+
+		// find id by actor
+		for (const auto& kv : actors)
+		{
+			if (kv.Value == actor)
+			{
+				selected_id = kv.Key;
+				break;
+			}
+		}
+
+		if (selected_id.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] No ID found for selected actor!"));
+			return;
+		}
+
+		// find pn_id by id
+		if (const F_object_instance_data* instance = object_instances_.Find(selected_id))
+		{
+			selected_pn_id = instance->pn_id;
+		}
+		else if (const F_object_instance_colored_box* box_instance = box_instances_.Find(selected_id))
+		{
+			selected_pn_id = box_instance->pn_id;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[integration_game_state] Object instance not found."));
+			return;
+		}
+
+		assignment_snapshot = current_assignment_;
+
 	}
 
-	const int32 assignment_raw = static_cast<int32>(current_assignment_);
-	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Selected actor %s (PN-ID: %d, Assignment: %d)"), *selected_id, selected_pn_id, assignment_raw);
+	const int32 assignment_raw = static_cast<int32>(assignment_snapshot);
+	UE_LOG(LogTemp, Log, TEXT("[integration_game_state] Sending selection with assignment %d"), assignment_raw);
 
 	// Send selection to server
 	if (selection_client)
 	{
-		bool success = selection_client->send_selection(selected_id, selected_pn_id, current_assignment_);
+		bool success = selection_client->send_selection(selected_id, selected_pn_id, assignment_snapshot);
 		if (!success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Failed to send selection to server!"));
@@ -325,6 +332,7 @@ void A_integration_game_state::select_mesh_by_actor(A_procedural_mesh_actor* act
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client is null!"));
 	}
+
 }
 
 void A_integration_game_state::update_anchor_transform(
@@ -373,47 +381,6 @@ void A_integration_game_state::sync_and_subscribe(bool forced)
 	//franka_joint_client->async_transmit_data();
 	franka_joint_sync_client->async_transmit_data();
 }
-
-//void A_integration_game_state::refresh_scenario()
-//{
-//
-//	scenario_ready_ = false;
-//
-//	// only for testing purposes
-//	/*if (false)
-//	{
-//		scenario_mode_ = scenario_override;
-//		current_assignment_ = sanitize_assignment(current_assignment_);
-//		UE_LOG(LogTemp, Log, TEXT("Scenario overridden to %d; assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
-//		return;
-//	}*/
-//
-//	if (!selection_client)
-//	{
-//		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Selection client null; cannot refresh scenario."));
-//		return;
-//	}
-//
-//	scenario_type new_mode = scenario_type::MIXED;
-//	if (!selection_client->request_scenario(new_mode))
-//	{
-//		UE_LOG(LogTemp, Warning, TEXT("[A_integration_game_state] Scenario request failed; keeping %d"), static_cast<int32>(scenario_mode_));
-//		return;
-//	}
-//
-//	if (scenario_mode_ == new_mode)
-//	{
-//		scenario_ready_ = true;
-//		return;
-//	}
-//
-//	scenario_mode_ = new_mode;
-//	current_assignment_ = sanitize_assignment(current_assignment_);
-//
-//	scenario_ready_ = true;
-//
-//	UE_LOG(LogTemp, Log, TEXT("[A_integration_game_state] Scenario set to %d; current assignment clamped to %d"), static_cast<int32>(scenario_mode_), static_cast<int32>(current_assignment_));
-//}
 
 bool A_integration_game_state::refresh_scenario()
 {
@@ -523,24 +490,36 @@ void A_integration_game_state::update_meshes(const TSet<FString>& pending_proto)
 
 void A_integration_game_state::update_actors(const TArray<FString>& to_delete)
 {
+	TArray<FString> invalid_actor_ids;
+	invalid_actor_ids.Reserve(actors.Num());
+
 	/**
 	 * actors might habe been destroyed globaly outside this scope
 	 */
 	for (const auto& actor : actors)
 	{
 		if (!IsValid(actor.Value))
-			actors.Remove(actor.Key);
+		{
+			invalid_actor_ids.Add(actor.Key);
+		}
+	}
+
+	for (const FString& invalid_id : invalid_actor_ids)
+	{
+		actors.Remove(invalid_id);
 	}
 
 	/**
 	 * remove any actors from the scene and @ref{actors}
 	 * which have been deleted
 	 */
-	A_procedural_mesh_actor* temp_del;
+	A_procedural_mesh_actor* temp_del = nullptr;
 	for (const auto& del : to_delete)
 	{
-		if (actors.RemoveAndCopyValue(del, temp_del))
+		if (actors.RemoveAndCopyValue(del, temp_del) && IsValid(temp_del))
+		{
 			temp_del->Destroy();
+		}
 	}
 }
 

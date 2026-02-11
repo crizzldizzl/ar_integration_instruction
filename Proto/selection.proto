@@ -39,7 +39,7 @@ message selection_message
 //
 message scenario_request 
 {
-    // 0 = DELEGATE_ONLY, 1 = RESERVE_ONLY, 2 = MIXED
+    // 0 = DELEGATE_ONLY, 1 = RESERVE_ONLY, 2 = MIXED, 3 = BASELINE
     int32 scenario = 1; 
 }
 

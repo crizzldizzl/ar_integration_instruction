@@ -73,7 +73,7 @@ public:
 	 * @attend emits @ref{on_channel_change} after all internal client channels are set
 	 */
 	UFUNCTION(BlueprintCallable)
-	void change_channel(FString target, int32 retries = 1);
+	void change_channel(const FString& target, int32 retries = 1);
 
 	/**
 	 * signal emitted on valid change of channel

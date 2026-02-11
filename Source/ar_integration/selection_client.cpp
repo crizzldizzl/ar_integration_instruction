@@ -8,6 +8,12 @@ bool U_selection_client::send_selection(const FString& mesh_id, int32 pn_id, ass
 		return false;
 	}
 
+    if (!stub_)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[selection_client] Stub not initialized."));
+        return false;
+    }
+
 	const int32 assignment_raw = static_cast<int32>(assignment);
 	UE_LOG(LogTemp, Log, TEXT("[selection_client] Sending selection %s (PN-ID: %d, Assignment: %d)"), *mesh_id, pn_id, assignment_raw);
 
@@ -40,6 +46,12 @@ bool U_selection_client::request_scenario(scenario_type& scenario)
     if (!channel || !channel->channel)
     {
         UE_LOG(LogTemp, Warning, TEXT("[selection_client] Channel invalid. Cannot request scenario!"));
+        return false;
+    }
+
+    if (!stub_)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[selection_client] Stub not initialized."));
         return false;
     }
 
